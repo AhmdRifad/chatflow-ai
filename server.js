@@ -68,10 +68,12 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-app.get('*', (req, res, next) => {
+
+app.get('/{*splat}', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
 
 app.use((err, _req, res, _next) => {
   console.error(err);
