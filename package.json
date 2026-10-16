@@ -1,0 +1,10 @@
+{
+  "name": "chatflow-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ChatFlow AI chat website with a secure Gemini backend",
+  "type": "module",
+  "scripts": { "start": "node server.js", "dev": "node --watch server.js" },
+  "engines": { "node": ">=20" },
+  "dependencies": { "@google/genai": "^1.11.0", "dotenv": "^16.6.1", "express": "^5.1.0" }
+}

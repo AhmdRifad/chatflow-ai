@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b0d12" />
+  <meta name="description" content="ChatFlow — a simple AI assistant powered by Gemini." />
+  <title>ChatFlow — AI assistant</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><div class="brand-mark"><span></span><span></span><span></span></div><span>ChatFlow</span></div>
+      <button class="new-chat" id="newChatBtn"><span class="plus">＋</span> New chat <kbd>Ctrl K</kbd></button>
+      <div class="side-label">YOUR SPACE</div>
+      <button class="side-link active" id="homeBtn"><span>◈</span> Assistant</button>
+      <button class="side-link" id="historyBtn"><span>◷</span> Recent chats</button>
+      <div class="sidebar-bottom">
+        <div class="status-card"><span class="status-dot" id="statusDot"></span><div><strong id="statusTitle">Checking connection</strong><small id="statusText">Connecting to ChatFlow</small></div></div>
+        <button class="side-link" id="clearBtn"><span>⌫</span> Clear chat history</button>
+        <div class="profile"><div class="avatar">CF</div><div><strong>ChatFlow user</strong><small>Personal workspace</small></div><span class="more">•••</span></div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <button class="mobile-menu" id="menuBtn" aria-label="Toggle menu">☰</button>
+        <div class="crumb">Workspace <span>/</span> <strong>Assistant</strong></div>
+        <div class="top-actions"><span class="model-chip"><span class="tiny-spark">✦</span> Gemini AI</span><button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">☼</button></div>
+      </header>
+
+      <section class="conversation" id="conversation" aria-live="polite">
+        <div class="welcome" id="welcome">
+          <div class="welcome-symbol"><span>✦</span></div>
+          <div class="eyebrow">YOUR AI WORKSPACE</div>
+          <h1>Ideas start here<span>.</span></h1>
+          <p class="welcome-copy">A little curiosity can take you a long way.<br class="desktop-only" /> What would you like to explore today?</p>
+          <div class="suggestions">
+            <button class="suggestion" data-prompt="Teach me Python from the beginning with simple examples."><span class="suggestion-icon purple">⌘</span><span><strong>Learn something new</strong><small>Explain a topic step by step</small></span><span class="suggestion-arrow">↗</span></button>
+            <button class="suggestion" data-prompt="Help me brainstorm creative ideas for a small project."><span class="suggestion-icon orange">✳</span><span><strong>Brainstorm ideas</strong><small>Explore possibilities together</small></span><span class="suggestion-arrow">↗</span></button>
+            <button class="suggestion" data-prompt="Help me write clean, beginner-friendly JavaScript code."><span class="suggestion-icon blue">&lt;/&gt;</span><span><strong>Build something</strong><small>Plan or improve your code</small></span><span class="suggestion-arrow">↗</span></button>
+            <button class="suggestion" data-prompt="Summarize this topic in simple English and give me an example: "><span class="suggestion-icon green">☷</span><span><strong>Make it simpler</strong><small>Turn complex ideas into clear ones</small></span><span class="suggestion-arrow">↗</span></button>
+          </div>
+        </div>
+        <div class="messages" id="messages"></div>
+      </section>
+
+      <footer class="composer-wrap">
+        <form class="composer" id="chatForm">
+          <textarea id="promptInput" rows="1" placeholder="Message ChatFlow..." aria-label="Message ChatFlow" maxlength="6000"></textarea>
+          <div class="composer-tools"><div class="composer-hint"><span class="keyboard-icon">↵</span> Enter to send <span class="hint-divider">·</span> Shift + Enter for new line</div><button class="send-btn" id="sendBtn" type="submit" aria-label="Send message"><span>↑</span></button></div>
+        </form>
+        <p class="disclaimer">ChatFlow can make mistakes. Check important information.</p>
+      </footer>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>
