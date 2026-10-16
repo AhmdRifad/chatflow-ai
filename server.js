@@ -45,7 +45,7 @@ app.post('/api/chat', async (req, res) => {
       parts: [{ text: item.text }]
     }));
     const result = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
       contents,
       config: {
         systemInstruction: 'You are ChatFlow, a helpful, clear, friendly AI assistant. Give accurate answers, explain difficult ideas simply, and admit uncertainty when needed.',
