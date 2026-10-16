@@ -7,8 +7,8 @@ let busy = false;
 let toastTimer;
 const STORAGE_KEY = 'chatflow-history-v2';
 const PREF_KEY = 'chatflow-prefs-v2';
-const MAX_ATTEMPTS = 3;
-const RETRYABLE_STATUS = new Set([429, 503]);
+const CLIENT_MAX_ATTEMPTS = 3;
+const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
 
 /* ---------- sample data ---------- */
 const SAMPLE_RESULTS = [
@@ -207,20 +207,51 @@ async function postChat(payload) {
 }
 
 function isRetryable(error) {
-  // Network error (no status) or retryable HTTP status.
+  if (!error) return false;
+  // Network error (no status) → retryable.
   if (!error.status) return true;
   return RETRYABLE_STATUS.has(error.status);
 }
 
-function attachRetryButton(content, text, attempts) {
+/* ---------- retry button ---------- */
+function attachRetryButton(content, userText) {
+  // Remove any previous retry button on this content node.
+  content.querySelectorAll('.retry-btn').forEach((b) => b.remove());
+
   const btn = document.createElement('button');
   btn.className = 'retry-btn';
   btn.type = 'button';
-  btn.textContent = '↻ Retry';
+
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('width', '12');
+  icon.setAttribute('height', '12');
+  icon.setAttribute('fill', 'none');
+  icon.setAttribute('stroke', 'currentColor');
+  icon.setAttribute('stroke-width', '2');
+  icon.setAttribute('stroke-linecap', 'round');
+  icon.setAttribute('stroke-linejoin', 'round');
+  icon.innerHTML = '<polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>';
+
+  const label = document.createElement('span');
+  label.textContent = 'Retry';
+
+  btn.append(icon, label);
+
   btn.addEventListener('click', () => {
-    btn.disabled = true;
-    sendMessage(text, { retry: true, attempts: attempts + 1 });
+    if (busy) return;
+    // Remove the failed assistant message and roll history back to before the failed turn.
+    const row = content.closest('.message');
+    // Roll back: drop anything at or after the user message we're retrying.
+    const idx = history.map((h) => h.role + ':' + h.text).lastIndexOf('user:' + userText);
+    if (idx >= 0) {
+      history = history.slice(0, idx);
+      saveHistory();
+    }
+    row?.remove();
+    sendMessage(userText, { retry: true });
   });
+
   content.appendChild(document.createElement('br'));
   content.appendChild(btn);
 }
@@ -231,15 +262,20 @@ async function sendMessage(text, options = {}) {
   if (!text || busy) return;
 
   const isRetry = Boolean(options.retry);
-  let attempts = isRetry ? Number(options.attempts || 1) : 1;
+  let attempts = 1;
 
   busy = true;
   sendBtn.disabled = true;
   input.disabled = true;
   chatEmpty.hidden = true;
 
-  // Only push/add a user message on the initial send, not on retries.
+  // On a fresh send, push + render the user message.
+  // On retry, history was already rolled back by the caller, so re-push it here.
   if (!isRetry) {
+    history.push({ role: 'user', text });
+    saveHistory();
+    addMessage('user', text);
+  } else {
     history.push({ role: 'user', text });
     saveHistory();
     addMessage('user', text);
@@ -250,7 +286,7 @@ async function sendMessage(text, options = {}) {
 
   let lastError = null;
 
-  while (attempts <= MAX_ATTEMPTS) {
+  while (attempts <= CLIENT_MAX_ATTEMPTS) {
     try {
       const data = await postChat({ messages: history });
       removeTyping();
@@ -266,11 +302,11 @@ async function sendMessage(text, options = {}) {
       return;
     } catch (e) {
       lastError = e;
-      const canRetry = isRetryable(e) && attempts < MAX_ATTEMPTS;
+      const canRetry = isRetryable(e) && attempts < CLIENT_MAX_ATTEMPTS;
       if (!canRetry) break;
 
       const delay = 1000 * Math.pow(2, attempts - 1); // 1s, 2s
-      showToast(`Retrying in ${delay / 1000}s… (attempt ${attempts + 1} of ${MAX_ATTEMPTS})`);
+      showToast(`Retrying in ${delay / 1000}s… (attempt ${attempts + 1} of ${CLIENT_MAX_ATTEMPTS})`);
       await sleep(delay);
       attempts++;
     }
@@ -279,14 +315,11 @@ async function sendMessage(text, options = {}) {
   // All attempts failed.
   removeTyping();
   const msg = lastError?.message || 'Something went wrong.';
-  const retryable = isRetryable(lastError);
-  const canTryAgain = retryable && attempts < MAX_ATTEMPTS;
+  const { content } = addMessage('assistant', msg, { error: true });
 
-  if (canTryAgain) {
-    const { content } = addMessage('assistant', `${msg} Tap retry to try again.`, { error: true });
-    attachRetryButton(content, text, attempts);
+  if (isRetryable(lastError)) {
+    attachRetryButton(content, text);
   } else {
-    addMessage('assistant', msg, { error: true });
     showToast(msg);
   }
 
