@@ -196,51 +196,57 @@ function attachRetryButton(content, userText) {
 
 /* ---------- Typewriter Effect ---------- */
 async function typeWriter(element, text) {
-  // 1. Parse and sanitize the Markdown
-  const html = DOMPurify.sanitize(marked.parse(text));
-  
-  // 2. Create a hidden container to hold the full formatted HTML
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
-  
-  // 3. Clear the live message bubble and add the empty HTML structure (for formatting)
-  element.innerHTML = temp.innerHTML;
-  
-  // 4. Find all the text nodes in the live message bubble
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
-  const liveNodes = [];
-  let node;
-  while ((node = walker.nextNode())) {
-    if (node.nodeValue.trim().length > 0) liveNodes.push(node);
-  }
-
-  // 5. Hide all text initially by setting their value to empty string
-  liveNodes.forEach(n => {
-    n.originalText = n.nodeValue;
-    n.nodeValue = '';
+  // 1. Configure marked to use plain text lists (so we can type the numbers/bullets)
+  marked.use({
+    renderer: {
+      listitem(text) { return text + '\n'; },
+      list(body, ordered, start) { return body; }
+    }
   });
 
-  // 6. Wait a tiny bit so the UI settles, then start typing
-  await sleep(50); 
-
+  // 2. Get the text with plain bullets/numbers
+  let plainText = marked.parse(text);
+  
+  // 3. Clean up the text by removing HTML tags (like <p>, <strong>)
+  // but keep the newlines and the numbers/bullets.
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = plainText;
+  
+  // Extract the raw text (this will include our typed bullets and numbers)
+  const rawText = tempDiv.textContent || tempDiv.innerText || "";
+  
+  // Reset the element
+  element.innerHTML = '';
+  
+  // 4. Type it out character by character
   const chunkSize = 2; // Type 2 characters at a time
   
-  for (let i = 0; i < liveNodes.length; i++) {
-    const n = liveNodes[i];
-    const fullText = n.originalText;
+  for (let i = 0; i < rawText.length; i += chunkSize) {
+    // We use textContent so it doesn't break if we type half of an HTML tag
+    element.textContent = rawText.substring(0, i + chunkSize);
     
-    for (let j = 0; j < fullText.length; j += chunkSize) {
-      n.nodeValue = fullText.substring(0, j + chunkSize);
-      
-      // Only scroll if the user is near the bottom
-      scrollChat(false);
-      
-      // Speed: 15ms is smooth.
-      await sleep(15); 
-    }
+    // Auto-scroll as it types
+    scrollChat(false);
+    
+    // Typing speed (15ms is smooth)
+    await sleep(15); 
   }
+  
+  // 5. Once typing is finished, apply the real Markdown formatting
+  element.innerHTML = DOMPurify.sanitize(marked.parse(text));
+  
+  // Restore the normal marked configuration for future messages
+  marked.use({
+    renderer: {
+      listitem(text) { 
+        return '<li>' + text + '</li>\n'; 
+      },
+      list(body, ordered, start) {
+        return ordered ? '<ol start="' + start + '">\n' + body + '</ol>\n' : '<ul>\n' + body + '</ul>\n';
+      }
+    }
+  });
 }
-
 /* ---------- Action Buttons ---------- */
 function addActionButtons(content, text) {
   const actions = document.createElement('div');
