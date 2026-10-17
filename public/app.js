@@ -30,21 +30,6 @@ const SAMPLE_RUN = {
 };
 
 /* ---------- tabs ---------- */
-/* ---------- mobile menu ---------- */
-const menuBtn = document.querySelector('.brand-mark');
-const overlay = document.createElement('div');
-overlay.className = 'sidebar-overlay';
-document.body.appendChild(overlay);
-
-// Open/close menu when tapping the logo (or hamburger)
-menuBtn.addEventListener('click', () => {
-  document.body.classList.toggle('sidebar-open');
-});
-
-// Close menu when clicking outside
-overlay.addEventListener('click', () => {
-  document.body.classList.remove('sidebar-open');
-});
 $$('.tab').forEach((tab) => {
   tab.addEventListener('click', () => {
     const target = tab.dataset.tab;
@@ -56,6 +41,19 @@ $$('.tab').forEach((tab) => {
     if (target === 'studio') left.textContent = 'Studio';
     if (target === 'settings') left.textContent = 'Preferences';
   });
+});
+
+/* ---------- mobile menu ---------- */
+const menuBtn = document.querySelector('.brand-mark');
+const overlay = document.createElement('div');
+overlay.className = 'sidebar-overlay';
+document.body.appendChild(overlay);
+
+menuBtn.addEventListener('click', () => {
+  document.body.classList.toggle('sidebar-open');
+});
+overlay.addEventListener('click', () => {
+  document.body.classList.remove('sidebar-open');
 });
 
 /* ---------- toast ---------- */
@@ -91,83 +89,27 @@ function saveHistory() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(-40))); } catch {}
 }
 
-
-
-  // --- ADD ACTION BUTTONS FOR AI MESSAGES ---
+/* ---------- chat rendering ---------- */
+function addMessage(role, text, opts = {}) {
+  const row = document.createElement('div');
+  row.className = `message ${role}`;
+  const av = document.createElement('div');
+  av.className = 'message-avatar';
+  av.textContent = role === 'user' ? 'You' : 'CF';
+  
+  const c = document.createElement('div');
+  c.className = 'message-content';
+  
+  // Use Markdown if it's an assistant message
   if (role === 'assistant' && !opts.error) {
-    const actions = document.createElement('div');
-    actions.className = 'message-actions';
-
-    // 1. Copy Button
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'action-btn';
-    copyBtn.title = 'Copy';
-    copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-    copyBtn.onclick = () => {
-      navigator.clipboard.writeText(text);
-      showToast('Copied to clipboard!');
-    };
-
-    // 2. Retry Button
-    const retryBtn = document.createElement('button');
-    retryBtn.className = 'action-btn';
-    retryBtn.title = 'Retry';
-    retryBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>';
-    retryBtn.onclick = () => {
-      if (busy) return;
-      const idx = history.map((h) => h.role + ':' + h.text).lastIndexOf('model:' + text);
-      if (idx > 0) {
-        const userText = history[idx - 1].text;
-        history = history.slice(0, idx - 1); // remove model response and user prompt
-        saveHistory();
-        messagesEl.replaceChildren();
-        renderHistory();
-        sendMessage(userText, { retry: true });
-      }
-    };
-
-    // 3. Like Button
-    const likeBtn = document.createElement('button');
-    likeBtn.className = 'action-btn';
-    likeBtn.title = 'Good response';
-    likeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>';
-    likeBtn.onclick = () => {
-      likeBtn.classList.toggle('active-like');
-      dislikeBtn.classList.remove('active-dislike');
-    };
-
-    // 4. Dislike Button
-    const dislikeBtn = document.createElement('button');
-    dislikeBtn.className = 'action-btn';
-    dislikeBtn.title = 'Bad response';
-    dislikeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-2"/></svg>';
-    dislikeBtn.onclick = () => {
-      dislikeBtn.classList.toggle('active-dislike');
-      likeBtn.classList.remove('active-like');
-    };
-
-    // 5. Share Button
-    const shareBtn = document.createElement('button');
-    shareBtn.className = 'action-btn';
-    shareBtn.title = 'Share';
-    shareBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
-    shareBtn.onclick = async () => {
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: 'ChatFlow AI', text: text });
-        } catch (err) {
-          if (err.name !== 'AbortError') showToast('Could not share.');
-        }
-      } else {
-        navigator.clipboard.writeText(text);
-        showToast('Sharing not supported. Copied to clipboard!');
-      }
-    };
-
-    actions.append(copyBtn, retryBtn, likeBtn, dislikeBtn, shareBtn);
-    c.appendChild(actions);
+    c.innerHTML = DOMPurify.sanitize(marked.parse(text));
+  } else {
+    c.textContent = text;
   }
-
+  
+  if (opts.error) c.classList.add('error');
+  
+  row.append(av, c);
   messagesEl.append(row);
   return { row, content: c };
 }
@@ -245,6 +187,7 @@ function attachRetryButton(content, userText) {
   content.appendChild(document.createElement('br'));
   content.appendChild(btn);
 }
+
 /* ---------- Typewriter Effect ---------- */
 async function typeWriter(element, text) {
   const html = DOMPurify.sanitize(marked.parse(text));
@@ -253,15 +196,14 @@ async function typeWriter(element, text) {
   
   element.innerHTML = '';
   
-  // Use a TreeWalker to type text node by text node
   const walker = document.createTreeWalker(temp, NodeFilter.SHOW_TEXT, null, false);
   let node;
-  const nodesToType = [];
   while ((node = walker.nextNode())) {
-    if (node.nodeValue.trim().length > 0) nodesToType.push(node);
+    if (node.nodeValue.trim().length > 0) {
+       // Just counting here
+    }
   }
 
-  // Clone the empty HTML structure into the element
   element.innerHTML = temp.innerHTML;
   const liveWalker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
   const liveNodes = [];
@@ -270,28 +212,24 @@ async function typeWriter(element, text) {
     if (liveNode.nodeValue.trim().length > 0) liveNodes.push(liveNode);
   }
 
-  // Empty out the text nodes so we can type into them
   liveNodes.forEach(n => {
     n.originalText = n.nodeValue;
     n.nodeValue = '';
   });
 
-  // Type 2-4 characters at a time for speed, but keep it smooth
   const chunkSize = 3; 
-  
   for (let i = 0; i < liveNodes.length; i++) {
     const n = liveNodes[i];
     const fullText = n.originalText;
-    
     for (let j = 0; j < fullText.length; j += chunkSize) {
       n.nodeValue = fullText.substring(0, j + chunkSize);
       scrollChat();
-      await sleep(10); // Adjust for speed (10ms is very fast, 30ms is slower)
+      await sleep(10); 
     }
   }
 }
 
-/* ---------- Action Buttons (Separated for typing) ---------- */
+/* ---------- Action Buttons ---------- */
 function addActionButtons(content, text) {
   const actions = document.createElement('div');
   actions.className = 'message-actions';
@@ -366,9 +304,6 @@ async function sendMessage(text, options = {}) {
   text = String(text || '').trim();
   if (!text || busy) return;
 
-  const isRetry = Boolean(options.retry);
-  let attempts = 1;
-
   busy = true;
   sendBtn.disabled = true;
   input.disabled = true;
@@ -382,23 +317,20 @@ async function sendMessage(text, options = {}) {
   scrollChat();
 
   let lastError = null;
+  let attempts = 1;
 
   while (attempts <= CLIENT_MAX_ATTEMPTS) {
     try {
-            const data = await postChat({ messages: history });
+      const data = await postChat({ messages: history });
       removeTyping();
       const answer = String(data.answer || '').trim() || 'No response.';
       history.push({ role: 'model', text: answer });
       saveHistory();
       
-      // Create an empty message bubble first
       const { content } = addMessage('assistant', ''); 
-      
-      // Type it out
       await typeWriter(content, answer);
-      
-      // After typing is done, attach the action buttons (copy, share, etc.)
       addActionButtons(content, answer);
+      
       busy = false;
       sendBtn.disabled = false;
       input.disabled = false;
@@ -457,17 +389,12 @@ $$('.chip[data-prompt]').forEach((chip) => {
 
 /* ---------- new chat ---------- */
 $('#newChatBtn').addEventListener('click', () => {
-  // 1. Clear the history
   history = [];
   saveHistory();
-  
-  // 2. Clear the screen
   messagesEl.replaceChildren();
   chatEmpty.hidden = false;
   input.value = '';
   input.focus();
-  
-  // 3. Close the sidebar if it is open on mobile
   document.body.classList.remove('sidebar-open');
 });
 
