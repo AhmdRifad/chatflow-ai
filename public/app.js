@@ -91,23 +91,7 @@ function saveHistory() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(-40))); } catch {}
 }
 
-/* ---------- chat rendering ---------- */
-function addMessage(role, text, opts = {}) {
-  const row = document.createElement('div');
-  row.className = `message ${role}`;
-  const av = document.createElement('div');
-  av.className = 'message-avatar';
-  av.textContent = role === 'user' ? 'You' : 'CF';
-  const c = document.createElement('div');
-  c.className = 'message-content';
-    // If it's an AI message, format it as Markdown. Otherwise, keep it as plain text.
-  if (role === 'assistant' && !opts.error) {
-    c.innerHTML = DOMPurify.sanitize(marked.parse(text));
-  } else {
-    c.textContent = text;
-  }
-  if (opts.error) c.classList.add('error');
-  row.append(av, c);
+
 
   // --- ADD ACTION BUTTONS FOR AI MESSAGES ---
   if (role === 'assistant' && !opts.error) {
