@@ -286,12 +286,20 @@ async function sendMessage(text, options = {}) {
 
   while (attempts <= CLIENT_MAX_ATTEMPTS) {
     try {
-      const data = await postChat({ messages: history });
+            const data = await postChat({ messages: history });
       removeTyping();
       const answer = String(data.answer || '').trim() || 'No response.';
       history.push({ role: 'model', text: answer });
       saveHistory();
-      addMessage('assistant', answer);
+      
+      // Create an empty message bubble first
+      const { content } = addMessage('assistant', ''); 
+      
+      // Type it out
+      await typeWriter(content, answer);
+      
+      // After typing is done, attach the action buttons (copy, share, etc.)
+      addActionButtons(content, answer);
       busy = false;
       sendBtn.disabled = false;
       input.disabled = false;
