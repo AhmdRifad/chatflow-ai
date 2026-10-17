@@ -261,6 +261,121 @@ function attachRetryButton(content, userText) {
   content.appendChild(document.createElement('br'));
   content.appendChild(btn);
 }
+/* ---------- Typewriter Effect ---------- */
+async function typeWriter(element, text) {
+  const html = DOMPurify.sanitize(marked.parse(text));
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  
+  element.innerHTML = '';
+  
+  // Use a TreeWalker to type text node by text node
+  const walker = document.createTreeWalker(temp, NodeFilter.SHOW_TEXT, null, false);
+  let node;
+  const nodesToType = [];
+  while ((node = walker.nextNode())) {
+    if (node.nodeValue.trim().length > 0) nodesToType.push(node);
+  }
+
+  // Clone the empty HTML structure into the element
+  element.innerHTML = temp.innerHTML;
+  const liveWalker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+  const liveNodes = [];
+  let liveNode;
+  while ((liveNode = liveWalker.nextNode())) {
+    if (liveNode.nodeValue.trim().length > 0) liveNodes.push(liveNode);
+  }
+
+  // Empty out the text nodes so we can type into them
+  liveNodes.forEach(n => {
+    n.originalText = n.nodeValue;
+    n.nodeValue = '';
+  });
+
+  // Type 2-4 characters at a time for speed, but keep it smooth
+  const chunkSize = 3; 
+  
+  for (let i = 0; i < liveNodes.length; i++) {
+    const n = liveNodes[i];
+    const fullText = n.originalText;
+    
+    for (let j = 0; j < fullText.length; j += chunkSize) {
+      n.nodeValue = fullText.substring(0, j + chunkSize);
+      scrollChat();
+      await sleep(10); // Adjust for speed (10ms is very fast, 30ms is slower)
+    }
+  }
+}
+
+/* ---------- Action Buttons (Separated for typing) ---------- */
+function addActionButtons(content, text) {
+  const actions = document.createElement('div');
+  actions.className = 'message-actions';
+
+  // 1. Copy
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'action-btn';
+  copyBtn.title = 'Copy';
+  copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(text);
+    showToast('Copied to clipboard!');
+  };
+
+  // 2. Retry
+  const retryBtn = document.createElement('button');
+  retryBtn.className = 'action-btn';
+  retryBtn.title = 'Retry';
+  retryBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>';
+  retryBtn.onclick = () => {
+    if (busy) return;
+    const idx = history.map((h) => h.role + ':' + h.text).lastIndexOf('model:' + text);
+    if (idx > 0) {
+      const userText = history[idx - 1].text;
+      history = history.slice(0, idx - 1); 
+      saveHistory();
+      content.closest('.message').remove(); 
+      sendMessage(userText, { retry: true });
+    }
+  };
+
+  // 3. Like
+  const likeBtn = document.createElement('button');
+  likeBtn.className = 'action-btn';
+  likeBtn.title = 'Good response';
+  likeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>';
+  likeBtn.onclick = () => {
+    likeBtn.classList.toggle('active-like');
+    dislikeBtn.classList.remove('active-dislike');
+  };
+
+  // 4. Dislike
+  const dislikeBtn = document.createElement('button');
+  dislikeBtn.className = 'action-btn';
+  dislikeBtn.title = 'Bad response';
+  dislikeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-2"/></svg>';
+  dislikeBtn.onclick = () => {
+    dislikeBtn.classList.toggle('active-dislike');
+    likeBtn.classList.remove('active-like');
+  };
+
+  // 5. Share
+  const shareBtn = document.createElement('button');
+  shareBtn.className = 'action-btn';
+  shareBtn.title = 'Share';
+  shareBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
+  shareBtn.onclick = async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: 'ChatFlow AI', text: text }); } catch (err) {}
+    } else {
+      navigator.clipboard.writeText(text);
+      showToast('Copied to clipboard!');
+    }
+  };
+
+  actions.append(copyBtn, retryBtn, likeBtn, dislikeBtn, shareBtn);
+  content.appendChild(actions);
+}
 
 /* ---------- send with retry ---------- */
 async function sendMessage(text, options = {}) {
