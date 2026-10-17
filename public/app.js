@@ -30,6 +30,21 @@ const SAMPLE_RUN = {
 };
 
 /* ---------- tabs ---------- */
+/* ---------- mobile menu ---------- */
+const menuBtn = document.querySelector('.brand-mark');
+const overlay = document.createElement('div');
+overlay.className = 'sidebar-overlay';
+document.body.appendChild(overlay);
+
+// Open/close menu when tapping the logo (or hamburger)
+menuBtn.addEventListener('click', () => {
+  document.body.classList.toggle('sidebar-open');
+});
+
+// Close menu when clicking outside
+overlay.addEventListener('click', () => {
+  document.body.classList.remove('sidebar-open');
+});
 $$('.tab').forEach((tab) => {
   tab.addEventListener('click', () => {
     const target = tab.dataset.tab;
