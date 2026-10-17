@@ -100,8 +100,8 @@ function addMessage(role, text, opts = {}) {
   const c = document.createElement('div');
   c.className = 'message-content';
   
-  // Use Markdown if it's an assistant message
-  if (role === 'assistant' && !opts.error) {
+  // If it's a normal message, render markdown
+  if (role === 'assistant' && !opts.error && text.trim() !== '') {
     c.innerHTML = DOMPurify.sanitize(marked.parse(text));
   } else {
     c.textContent = text;
@@ -139,9 +139,15 @@ function renderHistory() {
   scrollChat();
 }
 
-function scrollChat() {
+function scrollChat(force = false) {
   const scroller = $('#chatScroll');
-  if (scroller) scroller.scrollTop = scroller.scrollHeight;
+  if (!scroller) return;
+  
+  // Only scroll if forced (like sending a new message) or if we are already near the bottom
+  const isNearBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 150;
+  if (force || isNearBottom) {
+    scroller.scrollTop = scroller.scrollHeight;
+  }
 }
 
 /* ---------- chat networking ---------- */
@@ -190,41 +196,47 @@ function attachRetryButton(content, userText) {
 
 /* ---------- Typewriter Effect ---------- */
 async function typeWriter(element, text) {
+  // 1. Parse and sanitize the Markdown
   const html = DOMPurify.sanitize(marked.parse(text));
+  
+  // 2. Create a hidden container to hold the full formatted HTML
   const temp = document.createElement('div');
   temp.innerHTML = html;
   
-  element.innerHTML = '';
+  // 3. Clear the live message bubble and add the empty HTML structure (for formatting)
+  element.innerHTML = temp.innerHTML;
   
-  const walker = document.createTreeWalker(temp, NodeFilter.SHOW_TEXT, null, false);
+  // 4. Find all the text nodes in the live message bubble
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+  const liveNodes = [];
   let node;
   while ((node = walker.nextNode())) {
-    if (node.nodeValue.trim().length > 0) {
-       // Just counting here
-    }
+    if (node.nodeValue.trim().length > 0) liveNodes.push(node);
   }
 
-  element.innerHTML = temp.innerHTML;
-  const liveWalker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
-  const liveNodes = [];
-  let liveNode;
-  while ((liveNode = liveWalker.nextNode())) {
-    if (liveNode.nodeValue.trim().length > 0) liveNodes.push(liveNode);
-  }
-
+  // 5. Hide all text initially by setting their value to empty string
   liveNodes.forEach(n => {
     n.originalText = n.nodeValue;
     n.nodeValue = '';
   });
 
-  const chunkSize = 3; 
+  // 6. Wait a tiny bit so the UI settles, then start typing
+  await sleep(50); 
+
+  const chunkSize = 2; // Type 2 characters at a time
+  
   for (let i = 0; i < liveNodes.length; i++) {
     const n = liveNodes[i];
     const fullText = n.originalText;
+    
     for (let j = 0; j < fullText.length; j += chunkSize) {
       n.nodeValue = fullText.substring(0, j + chunkSize);
-      scrollChat();
-      await sleep(10); 
+      
+      // Only scroll if the user is near the bottom
+      scrollChat(false);
+      
+      // Speed: 15ms is smooth.
+      await sleep(15); 
     }
   }
 }
@@ -314,7 +326,7 @@ async function sendMessage(text, options = {}) {
   addMessage('user', text);
 
   showTyping();
-  scrollChat();
+  scrollChat(true); // Force scroll to show the user message and typing indicator
 
   let lastError = null;
   let attempts = 1;
@@ -327,15 +339,25 @@ async function sendMessage(text, options = {}) {
       history.push({ role: 'model', text: answer });
       saveHistory();
       
+      // Create the empty bubble
       const { content } = addMessage('assistant', ''); 
+      
+      // Scroll down so the user sees the empty bubble ready to type
+      scrollChat(true); 
+      
+      // Wait for the UI to settle before typing
+      await sleep(100); 
+      
+      // Type out the response
       await typeWriter(content, answer);
+      
+      // Add the action buttons (copy, share, etc.)
       addActionButtons(content, answer);
       
       busy = false;
       sendBtn.disabled = false;
       input.disabled = false;
       input.focus();
-      scrollChat();
       return;
     } catch (e) {
       lastError = e;
@@ -363,7 +385,7 @@ async function sendMessage(text, options = {}) {
   sendBtn.disabled = false;
   input.disabled = false;
   input.focus();
-  scrollChat();
+  scrollChat(true);
 }
 
 /* ---------- form + suggestions ---------- */
