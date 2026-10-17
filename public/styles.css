@@ -848,3 +848,41 @@ body.compact .recent-item { padding: 5px 10px; font-size: 12.5px; }
 }
 .message-content pre code { background: none; padding: 0; }
 .message-content hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
+/* --- Fix Markdown Spacing in Chat --- */
+.message-content {
+  line-height: 1.6;
+}
+
+/* Fix huge gaps between paragraphs */
+.message-content p {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+/* Fix huge gaps between lists and paragraphs */
+.message-content ul, 
+.message-content ol {
+  margin-top: 4px;
+  margin-bottom: 10px;
+  padding-left: 24px; /* Pushes the numbers/bullets in slightly */
+}
+
+/* Fix huge gaps between list items */
+.message-content li {
+  margin-bottom: 4px;
+}
+
+/* Remove empty paragraphs created by extra line breaks */
+.message-content p:empty {
+  display: none;
+}
+
+/* Fix spacing around headers */
+.message-content h1, 
+.message-content h2, 
+.message-content h3, 
+.message-content h4 {
+  margin-top: 14px;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
