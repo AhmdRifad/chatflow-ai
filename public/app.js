@@ -100,7 +100,12 @@ function addMessage(role, text, opts = {}) {
   av.textContent = role === 'user' ? 'You' : 'CF';
   const c = document.createElement('div');
   c.className = 'message-content';
-  c.textContent = text;
+    // If it's an AI message, format it as Markdown. Otherwise, keep it as plain text.
+  if (role === 'assistant' && !opts.error) {
+    c.innerHTML = DOMPurify.sanitize(marked.parse(text));
+  } else {
+    c.textContent = text;
+  }
   if (opts.error) c.classList.add('error');
   row.append(av, c);
 
