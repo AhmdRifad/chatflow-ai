@@ -330,12 +330,18 @@ $$('.chip[data-prompt]').forEach((chip) => {
 
 /* ---------- new chat ---------- */
 $('#newChatBtn').addEventListener('click', () => {
+  // 1. Clear the history
   history = [];
   saveHistory();
+  
+  // 2. Clear the screen
   messagesEl.replaceChildren();
   chatEmpty.hidden = false;
   input.value = '';
   input.focus();
+  
+  // 3. Close the sidebar if it is open on mobile
+  document.body.classList.remove('sidebar-open');
 });
 
 /* ---------- recent items ---------- */
