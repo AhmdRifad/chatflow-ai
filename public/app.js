@@ -142,7 +142,6 @@ function renderHistory() {
 function scrollChat(force = false) {
   const scroller = $('#chatScroll');
   if (!scroller) return;
-  
   // Only scroll if forced (like sending a new message) or if we are already near the bottom
   const isNearBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 150;
   if (force || isNearBottom) {
@@ -196,57 +195,39 @@ function attachRetryButton(content, userText) {
 
 /* ---------- Typewriter Effect ---------- */
 async function typeWriter(element, text) {
-  // 1. Configure marked to use plain text lists (so we can type the numbers/bullets)
-  marked.use({
-    renderer: {
-      listitem(text) { return text + '\n'; },
-      list(body, ordered, start) { return body; }
-    }
-  });
-
-  // 2. Get the text with plain bullets/numbers
-  let plainText = marked.parse(text);
-  
-  // 3. Clean up the text by removing HTML tags (like <p>, <strong>)
-  // but keep the newlines and the numbers/bullets.
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = plainText;
-  
-  // Extract the raw text (this will include our typed bullets and numbers)
-  const rawText = tempDiv.textContent || tempDiv.innerText || "";
-  
-  // Reset the element
   element.innerHTML = '';
   
-  // 4. Type it out character by character
-  const chunkSize = 2; // Type 2 characters at a time
+  // Split text into chunks by newline, so we can type line by line
+  const lines = text.split('\n');
+  let accumulatedHTML = '';
   
-  for (let i = 0; i < rawText.length; i += chunkSize) {
-    // We use textContent so it doesn't break if we type half of an HTML tag
-    element.textContent = rawText.substring(0, i + chunkSize);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     
-    // Auto-scroll as it types
-    scrollChat(false);
+    // Type the characters of the current line
+    for (let j = 0; j < line.length; j += 2) {
+      const currentText = accumulatedHTML + line.substring(0, j + 2);
+      
+      // We render it as plain text while typing to avoid breaking HTML tags
+      // but preserve bold tags if they are closed.
+      element.innerHTML = DOMPurify.sanitize(currentText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'));
+      
+      scrollChat(false);
+      await sleep(10);
+    }
     
-    // Typing speed (15ms is smooth)
-    await sleep(15); 
+    // Once the line is fully typed, add it to our accumulated HTML
+    accumulatedHTML += line + '\n';
+    
+    // Render the finished line with Markdown to make links/bold work
+    element.innerHTML = DOMPurify.sanitize(marked.parse(accumulatedHTML));
+    await sleep(20);
   }
   
-  // 5. Once typing is finished, apply the real Markdown formatting
+  // Final full render to ensure everything is perfect
   element.innerHTML = DOMPurify.sanitize(marked.parse(text));
-  
-  // Restore the normal marked configuration for future messages
-  marked.use({
-    renderer: {
-      listitem(text) { 
-        return '<li>' + text + '</li>\n'; 
-      },
-      list(body, ordered, start) {
-        return ordered ? '<ol start="' + start + '">\n' + body + '</ol>\n' : '<ul>\n' + body + '</ul>\n';
-      }
-    }
-  });
 }
+
 /* ---------- Action Buttons ---------- */
 function addActionButtons(content, text) {
   const actions = document.createElement('div');
@@ -364,6 +345,7 @@ async function sendMessage(text, options = {}) {
       sendBtn.disabled = false;
       input.disabled = false;
       input.focus();
+      scrollChat(false);
       return;
     } catch (e) {
       lastError = e;
