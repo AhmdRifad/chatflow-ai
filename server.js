@@ -68,7 +68,7 @@ app.post('/api/chat', async (req, res) => {
     else {
       if (!process.env.GEMINI_API_KEY) throw new Error('Gemini API key is missing in Render settings.');
       
-      const MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+      const MODEL = process.env.GEMINI_MODEL || 'gemini-4-argon';
       const result = await genAI.models.generateContent({
         model: MODEL,
         contents: formatGeminiHistory(safeMessages),
