@@ -55,7 +55,7 @@ app.post('/api/chat', async (req, res) => {
       if (!process.env.DEEPSEEK_API_KEY) throw new Error('DeepSeek API key is missing in Render settings.');
       
       const response = await deepseek.chat.completions.create({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: safeMessages.map(m => ({ 
           role: m.role === 'model' ? 'assistant' : 'user', 
           content: m.text 
