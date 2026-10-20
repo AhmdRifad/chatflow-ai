@@ -15,6 +15,7 @@
     "@google/genai": "^1.11.0",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
+    "grok-sdk": "^0.0.1-security",
     "openai": "^7.38.0"
   }
 }
