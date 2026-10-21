@@ -11,11 +11,12 @@
   "engines": {
     "node": ">=20"
   },
-  "dependencies": {
-    "@google/genai": "^0.1.1",
+    "dependencies": {
+    "@google/genai": "^0.1.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "groq-sdk": "^0.7.0"
+
   }
 }
