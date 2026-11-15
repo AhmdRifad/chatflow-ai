@@ -117,12 +117,8 @@ function resolveGeminiModel(modelId) {
   if (modelId === 'gemini-3-pro' || modelId === 'gemini-2.5-pro') return 'gemini-3-pro-preview';
   if (modelId === 'gemini-3.8-flash' || modelId === 'gemini-2.5-flash') return 'gemini-3.8-flash';
   if (modelId === 'gemini-2.0-flash') return 'gemini-2.0-flash';
-<<<<<<< HEAD
-  return 'gemini-3.8-flash';
-=======
   if (modelId === 'gemini-1.5-flash') return 'gemini-1.5-flash';
   return modelId || 'gemini-3.8-flash';
->>>>>>> cd51ea8 (Update project files)
 }
 
 // Smart simulated response generator when API keys are not yet configured
