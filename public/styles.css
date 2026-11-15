@@ -94,6 +94,10 @@
   padding: 0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html, body {
   height: 100%;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -2033,6 +2037,10 @@ kbd {
   justify-content: center;
   z-index: 100;
   animation: fadeIn 0.15s ease;
+}
+
+.modal-backdrop[hidden] {
+  display: none !important;
 }
 
 .palette-card {

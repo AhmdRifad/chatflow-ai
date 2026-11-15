@@ -1787,6 +1787,10 @@ window.addEventListener('keydown', (e) => {
     if (busy && abortController) {
       abortController.abort();
     }
+  } else if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+    e.preventDefault();
+    if (shortcutsModal.hidden) openShortcutsModal();
+    else closeShortcutsModal();
   }
 });
 
