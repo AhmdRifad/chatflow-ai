@@ -24,110 +24,6 @@ let isRecording = false;
 // Attachment State
 let attachedImages = [];
 
-// Studio Files State
-const STUDIO_SAMPLE_FILES = {
-  'main.py': `# ChatFlow Python Workspace (Python 3.14 Sandbox)
-def fibonacci_generator(n: int):
-    """Generate first n Fibonacci numbers."""
-    a, b = 0, 1
-    result = []
-    for _ in range(n):
-        result.append(a)
-        a, b = b, a + b
-    return result
-
-# Calculate and benchmark
-import time
-start = time.perf_counter()
-seq = fibonacci_generator(15)
-elapsed = (time.perf_counter() - start) * 1000
-
-print(f"Fibonacci (n=15): {seq}")
-print(f"Executed in: {elapsed:.3f} ms")
-`,
-  'index.html': `<!doctype html>
-<html>
-<head>
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      display: grid;
-      place-items: center;
-      min-height: 90vh;
-      background: #0f172a;
-      color: #f8fafc;
-      margin: 0;
-    }
-    .card {
-      background: #1e293b;
-      padding: 24px;
-      border-radius: 12px;
-      border: 1px solid #334155;
-      text-align: center;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-    }
-    button {
-      background: #10b981;
-      color: white;
-      border: none;
-      padding: 10px 18px;
-      border-radius: 6px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 12px;
-      transition: transform 0.1s;
-    }
-    button:active { transform: scale(0.96); }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h2>Interactive Canvas Demo</h2>
-    <p id="counterText">Click count: 0</p>
-    <button id="clickBtn">Click Me!</button>
-  </div>
-  <script>
-    let count = 0;
-    document.getElementById('clickBtn').addEventListener('click', () => {
-      count++;
-      document.getElementById('counterText').textContent = 'Click count: ' + count;
-    });
-  <\/script>
-</body>
-</html>`,
-  'styles.css': `/* CSS Workspace */
-:root {
-  --primary-accent: #10b981;
-  --bg-gradient: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
-}
-
-.gradient-title {
-  background: var(--bg-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-weight: 800;
-}
-`,
-  'script.js': `// JavaScript Workspace (Node.js VM Sandbox)
-const sampleData = [
-  { name: 'Gemini 3.8 Flash', tokensPerSec: 165, latencyMs: 240 },
-  { name: 'Groq Llama 3.3', tokensPerSec: 280, latencyMs: 140 },
-  { name: 'Groq Mixtral', tokensPerSec: 220, latencyMs: 190 }
-];
-
-console.log("=== Performance Benchmark Analysis ===");
-sampleData.forEach(item => {
-  console.log(\`Model: \${item.name} | Speed: \${item.tokensPerSec} t/s | Latency: \${item.latencyMs}ms\`);
-});
-
-const fastest = sampleData.reduce((prev, curr) => curr.tokensPerSec > prev.tokensPerSec ? curr : prev);
-console.log(\`\\nFastest engine: \${fastest.name} (\${fastest.tokensPerSec} t/s)\`);
-`
-};
-
-let studioFiles = { ...STUDIO_SAMPLE_FILES };
-let activeStudioFile = 'main.py';
-
 // Personas dictionary
 const PERSONAS = {
   general: 'You are ChatFlow AI, a helpful, intelligent, and highly knowledgeable AI assistant.',
@@ -295,8 +191,6 @@ function switchTab(tabId) {
 
   if (tabId === 'chat') {
     $('#promptInput')?.focus();
-  } else if (tabId === 'studio') {
-    renderStudio();
   }
 }
 
@@ -611,31 +505,7 @@ function enrichMessageElement(contentEl, rawText) {
       showToast('Code copied to clipboard.');
     });
 
-    // Send to Studio Button
-    const studioBtn = document.createElement('button');
-    studioBtn.className = 'code-action-btn';
-    studioBtn.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>Open in Studio</span>';
-    studioBtn.addEventListener('click', () => {
-      const code = block.textContent;
-      const lowerLang = langName.toLowerCase();
-      if (lowerLang.includes('py')) {
-        studioFiles['main.py'] = code;
-        activeStudioFile = 'main.py';
-      } else if (lowerLang.includes('html')) {
-        studioFiles['index.html'] = code;
-        activeStudioFile = 'index.html';
-      } else if (lowerLang.includes('css')) {
-        studioFiles['styles.css'] = code;
-        activeStudioFile = 'styles.css';
-      } else {
-        studioFiles['script.js'] = code;
-        activeStudioFile = 'script.js';
-      }
-      switchTab('studio');
-      showToast(`Loaded into Studio (${activeStudioFile})`);
-    });
-
-    actions.append(copyBtn, studioBtn);
+    actions.append(copyBtn);
     header.appendChild(actions);
 
     pre.parentNode.insertBefore(wrapper, pre);
@@ -1209,304 +1079,10 @@ $('#chatForm').addEventListener('submit', (e) => {
 $$('.chip[data-prompt]').forEach((chip) => {
   chip.addEventListener('click', () => {
     const prompt = chip.dataset.prompt;
-    if (chip.closest('.panel[data-panel="compare"]')) {
-      $('#compareInput').value = prompt;
-    } else {
-      promptInput.value = prompt;
-      autoResizeTextarea(promptInput);
-      promptInput.focus();
-    }
+    promptInput.value = prompt;
+    autoResizeTextarea(promptInput);
+    promptInput.focus();
   });
-});
-
-// -----------------------------------------------------------------------------
-// COMPARE TAB (MODEL ARENA)
-// -----------------------------------------------------------------------------
-$('#compareBtn').addEventListener('click', async () => {
-  const prompt = $('#compareInput').value.trim();
-  if (!prompt) return showToast('Please enter or select a prompt.');
-
-  const modelA = $('#compareModelA').value;
-  const modelB = $('#compareModelB').value;
-
-  const resultsWrap = $('#compareResults');
-  resultsWrap.innerHTML = `
-    <div style="padding: 40px; text-align: center; color: var(--text-muted);">
-      <div class="streaming-cursor" style="width: 10px; height: 10px; border-radius: 50%;"></div>
-      <p style="margin-top: 12px; font-weight: 500;">Benchmarking models in parallel...</p>
-    </div>
-  `;
-
-  const storedKeys = getStoredApiKeys();
-  const headers = { 'Content-Type': 'application/json' };
-  if (storedKeys.geminiKey) headers['x-gemini-key'] = storedKeys.geminiKey;
-  if (storedKeys.groqKey) headers['x-groq-key'] = storedKeys.groqKey;
-
-  try {
-    const res = await fetch('/api/compare', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ prompt, modelA, modelB }),
-    });
-
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-
-    resultsWrap.replaceChildren();
-    const grid = document.createElement('div');
-    grid.className = 'compare-cards-grid';
-
-    data.results.forEach((r, idx) => {
-      const card = document.createElement('div');
-      card.className = 'style-card';
-      card.innerHTML = `
-        <div class="style-card-head">
-          <div>
-            <div class="style-card-label">${r.label || 'MODEL'}</div>
-            <div class="style-card-name">${r.name || r.model}</div>
-          </div>
-          <span class="badge ${r.badge === 'Optimal' ? 'best' : ''}">${r.badge}</span>
-        </div>
-        <div class="style-metrics">
-          <div class="metric-item">
-            <span class="metric-val">${r.latencyMs}ms</span>
-            <span class="metric-lbl">Response Time</span>
-          </div>
-          <div class="metric-item">
-            <span class="metric-val">~${r.tokenCount}</span>
-            <span class="metric-lbl">Est. Tokens</span>
-          </div>
-          <div class="metric-item">
-            <span class="metric-val">${r.score}/100</span>
-            <span class="metric-lbl">Clarity Score</span>
-          </div>
-        </div>
-        <div class="style-bar">
-          <div class="style-bar-fill" style="width: ${r.score}%"></div>
-        </div>
-        <div class="style-body">${renderMarkdownContent(r.body)}</div>
-        <button class="vote-winner-btn" data-model="${r.name}">
-          🏆 Pick as Winner
-        </button>
-      `;
-
-      card.querySelector('.vote-winner-btn').addEventListener('click', (ev) => {
-        ev.target.textContent = '🎉 Winner Selected!';
-        ev.target.style.background = 'var(--primary)';
-        ev.target.style.color = '#fff';
-        playChime('success');
-        showToast(`You selected ${r.name} as the arena winner!`);
-      });
-
-      grid.appendChild(card);
-    });
-
-    resultsWrap.appendChild(grid);
-    playChime('success');
-  } catch (err) {
-    resultsWrap.innerHTML = `
-      <div class="banner banner-error">
-        <span class="banner-icon">!</span>
-        <span>Comparison failed: ${err.message}</span>
-      </div>
-    `;
-    playChime('error');
-  }
-});
-
-// -----------------------------------------------------------------------------
-// STUDIO TAB (CODE PLAYGROUND & SANDBOX)
-// -----------------------------------------------------------------------------
-function renderStudio() {
-  const textarea = $('#editorTextarea');
-  const gutter = $('#editorGutter');
-  const fileLabel = $('#editorFile');
-  const badge = $('#editorLangBadge');
-
-  fileLabel.textContent = activeStudioFile;
-
-  if (activeStudioFile.endsWith('.py')) {
-    badge.textContent = 'Python 3.14';
-  } else if (activeStudioFile.endsWith('.html')) {
-    badge.textContent = 'HTML5';
-  } else if (activeStudioFile.endsWith('.css')) {
-    badge.textContent = 'CSS3';
-  } else {
-    badge.textContent = 'JavaScript (Node)';
-  }
-
-  textarea.value = studioFiles[activeStudioFile] || '';
-  updateEditorGutter();
-
-  // If HTML or CSS, update live preview automatically
-  if (activeStudioFile.endsWith('.html') || activeStudioFile.endsWith('.css')) {
-    updateLiveWebPreview();
-  }
-}
-
-function updateEditorGutter() {
-  const textarea = $('#editorTextarea');
-  const gutter = $('#editorGutter');
-  const lines = textarea.value.split('\n').length;
-  gutter.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br/>');
-}
-
-// Handle Tab key in editor (inserts 4 spaces instead of losing focus)
-$('#editorTextarea').addEventListener('keydown', (e) => {
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    const textarea = e.target;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    textarea.value = textarea.value.substring(0, start) + '    ' + textarea.value.substring(end);
-    textarea.selectionStart = textarea.selectionEnd = start + 4;
-    updateEditorGutter();
-  } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    e.preventDefault();
-    $('#runBtn').click();
-  }
-});
-
-$('#editorTextarea').addEventListener('input', () => {
-  studioFiles[activeStudioFile] = $('#editorTextarea').value;
-  updateEditorGutter();
-  if (activeStudioFile.endsWith('.html') || activeStudioFile.endsWith('.css')) {
-    updateLiveWebPreview();
-  }
-});
-
-// File tabs switching in Studio
-$$('.file-item').forEach((item) => {
-  item.addEventListener('click', () => {
-    $$('.file-item').forEach((i) => i.classList.remove('active'));
-    item.classList.add('active');
-    activeStudioFile = item.dataset.file;
-    renderStudio();
-  });
-});
-
-// Output pane tabs (Console vs Live Preview)
-$$('.output-tab').forEach((tab) => {
-  tab.addEventListener('click', () => {
-    $$('.output-tab').forEach((t) => t.classList.remove('active'));
-    $$('.output-pane').forEach((p) => p.classList.remove('active'));
-    tab.classList.add('active');
-
-    const target = tab.dataset.out;
-    if (target === 'console') {
-      $('#paneConsole').classList.add('active');
-    } else {
-      $('#panePreview').classList.add('active');
-      updateLiveWebPreview();
-    }
-  });
-});
-
-function updateLiveWebPreview() {
-  const iframe = $('#previewFrame');
-  const html = studioFiles['index.html'] || '';
-  const css = studioFiles['styles.css'] || '';
-  const js = studioFiles['script.js'] || '';
-
-  const combined = `
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>${css}</style>
-      </head>
-      <body>
-        ${html}
-        <script>${js}<\/script>
-      </body>
-    </html>
-  `;
-
-  iframe.srcdoc = combined;
-}
-
-// Clear console
-$('#clearConsoleBtn').addEventListener('click', () => {
-  $('#outputBody').innerHTML = `
-    <div class="banner banner-neutral">
-      <span class="banner-icon">i</span>
-      <span>Console cleared. Press "Run Code" to execute.</span>
-    </div>
-  `;
-});
-
-// Run Code in Sandbox
-$('#runBtn').addEventListener('click', async () => {
-  const code = $('#editorTextarea').value;
-  const lang = activeStudioFile.split('.').pop();
-  const outputBody = $('#outputBody');
-
-  // Switch to console view
-  $('.output-tab[data-out="console"]').click();
-
-  outputBody.innerHTML = `
-    <div class="banner banner-neutral">
-      <span class="banner-icon">i</span>
-      <span>Executing in safe sandbox...</span>
-    </div>
-  `;
-
-  try {
-    const res = await fetch('/api/run-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, language: lang }),
-    });
-
-    const data = await res.json();
-
-    if (data.previewReady) {
-      $('.output-tab[data-out="preview"]').click();
-      showToast('Live Web Preview rendered!');
-      return;
-    }
-
-    const isSuccess = data.success !== false;
-    outputBody.innerHTML = `
-      <div class="banner ${isSuccess ? 'banner-success' : 'banner-error'}">
-        <span class="banner-icon">${isSuccess ? '✓' : '!'}</span>
-        <div style="flex: 1;">
-          <strong>${isSuccess ? 'SUCCESS' : 'EXECUTION ERROR'} · ${activeStudioFile} (${data.durationMs}ms)</strong>
-          <pre style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; white-space: pre-wrap;">${data.output || '(No output)'}</pre>
-        </div>
-      </div>
-    `;
-
-    playChime(isSuccess ? 'success' : 'error');
-  } catch (err) {
-    outputBody.innerHTML = `
-      <div class="banner banner-error">
-        <span class="banner-icon">!</span>
-        <span>Execution request failed: ${err.message}</span>
-      </div>
-    `;
-    playChime('error');
-  }
-});
-
-// Explain with AI button
-$('#aiExplainCodeBtn').addEventListener('click', () => {
-  const code = $('#editorTextarea').value;
-  const prompt = `Please explain the following ${activeStudioFile} code line-by-line and outline any potential optimizations:\n\n\`\`\`${activeStudioFile}\n${code}\n\`\`\``;
-  switchTab('chat');
-  promptInput.value = prompt;
-  autoResizeTextarea(promptInput);
-  sendMessage(prompt);
-});
-
-// Fix with AI button
-$('#aiFixCodeBtn').addEventListener('click', () => {
-  const code = $('#editorTextarea').value;
-  const prompt = `Please review, debug, and optimize this ${activeStudioFile} code. Point out any edge cases, security issues, or performance bugs, and provide the corrected version:\n\n\`\`\`${activeStudioFile}\n${code}\n\`\`\``;
-  switchTab('chat');
-  promptInput.value = prompt;
-  autoResizeTextarea(promptInput);
-  sendMessage(prompt);
 });
 
 // -----------------------------------------------------------------------------
@@ -1664,9 +1240,7 @@ const PALETTE_COMMANDS = [
   { label: 'Switch to Gemini 3.8 Flash', icon: '🌟', kbd: '', action: () => { $('#model-select').value = 'gemini-3.8-flash'; showToast('Model set to Gemini 3.8 Flash'); } },
   { label: 'Switch to Gemini 3 Pro', icon: '🧠', kbd: '', action: () => { $('#model-select').value = 'gemini-3-pro'; showToast('Model set to Gemini 3 Pro'); } },
   { label: 'Switch to Groq Llama 3.3', icon: '⚡', kbd: '', action: () => { $('#model-select').value = 'groq-llama-3.3-70b'; showToast('Model set to Groq Llama 3.3'); } },
-  { label: 'Open Model Arena (Compare)', icon: '⚖️', kbd: 'Ctrl+2', action: () => switchTab('compare') },
-  { label: 'Open Code Studio Playground', icon: '💻', kbd: 'Ctrl+3', action: () => switchTab('studio') },
-  { label: 'Open Preferences & Settings', icon: '⚙️', kbd: 'Ctrl+4', action: () => switchTab('settings') },
+  { label: 'Open Preferences & Settings', icon: '⚙️', kbd: 'Ctrl+2', action: () => switchTab('settings') },
   { label: 'Toggle Dark / Light Theme', icon: '🌓', kbd: '', action: () => $('#themeToggleBtn').click() },
   { label: 'Export Current Conversation', icon: '📥', kbd: '', action: () => $('#exportChatsBtn').click() },
   { label: 'Clear All Saved Conversations', icon: '🗑️', kbd: '', action: () => $('#clearAllChatsBtn').click() },
@@ -1772,13 +1346,7 @@ window.addEventListener('keydown', (e) => {
   } else if ((e.metaKey || e.ctrlKey) && e.key === '1') {
     e.preventDefault();
     switchTab('chat');
-  } else if ((e.metaKey || e.ctrlKey) && e.key === '2') {
-    e.preventDefault();
-    switchTab('compare');
-  } else if ((e.metaKey || e.ctrlKey) && e.key === '3') {
-    e.preventDefault();
-    switchTab('studio');
-  } else if ((e.metaKey || e.ctrlKey) && e.key === '4') {
+  } else if ((e.metaKey || e.ctrlKey) && (e.key === '2' || e.key === '4')) {
     e.preventDefault();
     switchTab('settings');
   } else if (e.key === 'Escape') {
@@ -1834,7 +1402,6 @@ function bootstrap() {
   renderChatMessages();
   renderRecentList();
   updateChatTitleDisplay();
-  renderStudio();
 
   $('#promptInput')?.focus();
 }
