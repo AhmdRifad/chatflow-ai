@@ -17,8 +17,8 @@ app.use(express.static('public'));
 // Supported models registry
 const AVAILABLE_MODELS = [
   {
-    id: 'gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash',
+    id: 'gemini-3.8-flash',
+    name: 'Gemini 3.8 Flash',
     provider: 'Google AI',
     badge: 'Recommended',
     description: 'Fastest, state-of-the-art multimodal reasoning with 1M token context',
@@ -26,8 +26,8 @@ const AVAILABLE_MODELS = [
     isDefault: true,
   },
   {
-    id: 'gemini-2.5-pro',
-    name: 'Gemini 2.5 Pro',
+    id: 'gemini-3-pro',
+    name: 'Gemini 3 Pro',
     provider: 'Google AI',
     badge: 'Deep Reasoning',
     description: 'Maximum intelligence for complex code, math, and multi-step reasoning',
@@ -114,10 +114,15 @@ function resolveGroqModel(modelId) {
 
 // Map Gemini friendly model names
 function resolveGeminiModel(modelId) {
-  if (modelId === 'gemini-2.5-pro') return 'gemini-2.5-pro';
-  if (modelId === 'gemini-1.5-flash') return 'gemini-1.5-flash';
+  if (modelId === 'gemini-3-pro' || modelId === 'gemini-2.5-pro') return 'gemini-3-pro-preview';
+  if (modelId === 'gemini-3.8-flash' || modelId === 'gemini-2.5-flash') return 'gemini-3.8-flash';
   if (modelId === 'gemini-2.0-flash') return 'gemini-2.0-flash';
+<<<<<<< HEAD
   return 'gemini-3.8-flash';
+=======
+  if (modelId === 'gemini-1.5-flash') return 'gemini-1.5-flash';
+  return modelId || 'gemini-3.8-flash';
+>>>>>>> cd51ea8 (Update project files)
 }
 
 // Smart simulated response generator when API keys are not yet configured
@@ -175,10 +180,18 @@ app.post('/api/verify-keys', async (req, res) => {
   if (geminiKey) {
     try {
       const ai = new GoogleGenAI({ apiKey: geminiKey });
-      const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: 'ping',
-      });
+      let resp;
+      try {
+        resp = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: 'ping',
+        });
+      } catch (err) {
+        resp = await ai.models.generateContent({
+          model: 'gemini-2.0-flash',
+          contents: 'ping',
+        });
+      }
       if (resp && resp.text) {
         results.gemini = { valid: true, message: 'Gemini API key is active and working!' };
       }
@@ -216,7 +229,7 @@ app.post('/api/chat', async (req, res) => {
     const {
       message,
       messages,
-      model = 'gemini-2.5-flash',
+      model = 'gemini-3.8-flash',
       stream = true,
       temperature = 0.7,
       systemInstruction = '',
@@ -454,7 +467,7 @@ app.post('/api/chat', async (req, res) => {
 
 // Compare Endpoint: Evaluates two models in parallel with real-world metrics
 app.post('/api/compare', async (req, res) => {
-  const { prompt, modelA = 'gemini-2.5-flash', modelB = 'groq-llama-3.3-70b' } = req.body;
+  const { prompt, modelA = 'gemini-3.8-flash', modelB = 'groq-llama-3.3-70b' } = req.body;
   const geminiHeaderKey = req.headers['x-gemini-key'];
   const groqHeaderKey = req.headers['x-groq-key'];
 
@@ -526,11 +539,12 @@ app.post('/api/compare', async (req, res) => {
     } else {
       // Gemini Model
       const geminiModelName = resolveGeminiModel(targetModel);
+      const displayName = targetModel.includes('pro') ? 'Gemini 3 Pro' : 'Gemini 3.8 Flash';
       if (!geminiClient) {
         const demo = generateDemoResponse(prompt, targetModel);
         return {
           model: targetModel,
-          name: targetModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash',
+          name: displayName,
           label: 'GOOGLE AI',
           badge: 'Optimal Reasoning',
           score: 95,
@@ -551,7 +565,7 @@ app.post('/api/compare', async (req, res) => {
         const tokenCount = Math.round(body.length / 4);
         return {
           model: targetModel,
-          name: targetModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash',
+          name: displayName,
           label: 'GOOGLE AI',
           badge: latency < 450 ? 'Optimal' : 'Deep Analysis',
           score: Math.min(99, 90 + Math.round(body.length / 90)),

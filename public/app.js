@@ -110,7 +110,7 @@ print(f"Executed in: {elapsed:.3f} ms")
 `,
   'script.js': `// JavaScript Workspace (Node.js VM Sandbox)
 const sampleData = [
-  { name: 'Gemini 2.5 Flash', tokensPerSec: 165, latencyMs: 240 },
+  { name: 'Gemini 3.8 Flash', tokensPerSec: 165, latencyMs: 240 },
   { name: 'Groq Llama 3.3', tokensPerSec: 280, latencyMs: 140 },
   { name: 'Groq Mixtral', tokensPerSec: 220, latencyMs: 190 }
 ];
@@ -1661,8 +1661,8 @@ const paletteResults = $('#paletteResults');
 
 const PALETTE_COMMANDS = [
   { label: 'Start New Conversation', icon: '💬', kbd: '⌘N', action: () => { switchTab('chat'); createConversation(); } },
-  { label: 'Switch to Gemini 2.5 Flash', icon: '🌟', kbd: '', action: () => { $('#model-select').value = 'gemini-2.5-flash'; showToast('Model set to Gemini 2.5 Flash'); } },
-  { label: 'Switch to Gemini 2.5 Pro', icon: '🧠', kbd: '', action: () => { $('#model-select').value = 'gemini-2.5-pro'; showToast('Model set to Gemini 2.5 Pro'); } },
+  { label: 'Switch to Gemini 3.8 Flash', icon: '🌟', kbd: '', action: () => { $('#model-select').value = 'gemini-3.8-flash'; showToast('Model set to Gemini 3.8 Flash'); } },
+  { label: 'Switch to Gemini 3 Pro', icon: '🧠', kbd: '', action: () => { $('#model-select').value = 'gemini-3-pro'; showToast('Model set to Gemini 3 Pro'); } },
   { label: 'Switch to Groq Llama 3.3', icon: '⚡', kbd: '', action: () => { $('#model-select').value = 'groq-llama-3.3-70b'; showToast('Model set to Groq Llama 3.3'); } },
   { label: 'Open Model Arena (Compare)', icon: '⚖️', kbd: 'Ctrl+2', action: () => switchTab('compare') },
   { label: 'Open Code Studio Playground', icon: '💻', kbd: 'Ctrl+3', action: () => switchTab('studio') },
