@@ -1,227 +1,607 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
-  <meta name="theme-color" content="#ffffff" />
-  <meta name="description" content="ChatFlow — a small AI workspace." />
-  <title>ChatFlow</title>
+  <meta name="theme-color" content="#0f0f11" />
+  <meta name="description" content="ChatFlow AI — Modern, ultra-fast AI workspace with Gemini 2.5, Groq, Code Studio, and Model Comparison Arena." />
+  <title>ChatFlow AI — Intelligent AI Workspace</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+
+  <!-- Markdown, Sanitizer, Syntax Highlighting & Math CDN libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 </head>
 <body>
   <div class="app">
+    <!-- TOP BAR -->
     <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h16"/></svg>
-        </span>
-        <span class="brand-name">ChatFlow</span>
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle Sidebar">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h11M4 18h16"/></svg>
+          </span>
+          <div class="brand-text">
+            <span class="brand-name">ChatFlow</span>
+            <span class="brand-badge">PRO v2.0</span>
+          </div>
+        </div>
       </div>
+
       <nav class="tabs" role="tablist">
-        <button class="tab active" data-tab="chat" role="tab">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <button class="tab active" data-tab="chat" role="tab" title="Chat Workspace (Ctrl+1)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span>Chat</span>
         </button>
-        <button class="tab" data-tab="compare" role="tab">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <button class="tab" data-tab="compare" role="tab" title="Compare Models Arena (Ctrl+2)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           <span>Compare</span>
+          <span class="tab-pill">Arena</span>
         </button>
-        <button class="tab" data-tab="studio" role="tab">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <button class="tab" data-tab="studio" role="tab" title="Code Playground & Sandbox (Ctrl+3)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           <span>Studio</span>
+          <span class="tab-pill green">Run</span>
         </button>
-        <button class="tab" data-tab="settings" role="tab">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <button class="tab" data-tab="settings" role="tab" title="Settings & API Keys (Ctrl+4)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>Settings</span>
         </button>
       </nav>
+
+      <div class="topbar-right">
+        <!-- Status Indicator -->
+        <div class="status-badge" id="backendStatusBadge" title="Server Connectivity">
+          <span class="status-dot"></span>
+          <span class="status-text" id="backendStatusText">Checking...</span>
+        </div>
+
+        <!-- Quick Palette Shortcut -->
+        <button class="topbar-btn" id="cmdPaletteBtn" title="Command Palette (Cmd+K / Ctrl+K)">
+          <kbd>⌘K</kbd>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button class="topbar-btn" id="themeToggleBtn" title="Toggle Dark/Light Mode">
+          <svg class="theme-icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="theme-icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        <!-- Shortcuts Help -->
+        <button class="topbar-btn" id="shortcutsBtn" title="Keyboard Shortcuts (?)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
+      </div>
     </header>
 
+    <!-- SUBHEADER -->
     <div class="subheader">
-      <div class="subheader-left" id="subheaderLeft">New conversation</div>
+      <div class="subheader-left">
+        <span class="chat-title" id="subheaderLeft" title="Click to rename">New conversation</span>
+        <button class="title-edit-btn" id="renameChatBtn" title="Rename conversation">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </button>
+      </div>
+
+      <!-- Quick Personas -->
+      <div class="persona-chips" id="personaChips">
+        <button class="persona-chip active" data-persona="general">🤖 Assistant</button>
+        <button class="persona-chip" data-persona="coder">💻 Coder</button>
+        <button class="persona-chip" data-persona="writer">✍️ Writer</button>
+        <button class="persona-chip" data-persona="tutor">🎓 Tutor</button>
+        <button class="persona-chip" data-persona="concise">⚡ Concise</button>
+      </div>
+
       <div class="subheader-right">
         <span class="subheader-label">Model</span>
-    <select id="model-select">
-    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-    <option value="groq-llama3-70b">Groq Llama 3 (70B)</option>
-    <option value="groq-mixtral">Groq Mixtral (8x7B)</option>
-</select>
+        <div class="select-wrapper">
+          <select id="model-select" class="model-select" title="Select AI Engine">
+            <optgroup label="Google AI">
+              <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Fast & Smart)</option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro (Deep Reasoning)</option>
+            </optgroup>
+            <optgroup label="Groq (Ultra-Low Latency)">
+              <option value="groq-llama-3.3-70b">Groq Llama 3.3 (70B)</option>
+              <option value="groq-mixtral">Groq Mixtral (8x7B)</option>
+              <option value="groq-llama3-8b">Groq Llama 3 (8B)</option>
+            </optgroup>
+            <optgroup label="Offline / Free">
+              <option value="demo-mode">Interactive Demo Assistant</option>
+            </optgroup>
+          </select>
+        </div>
 
-</select>
-
+        <div class="speed-badge" id="speedBadge" title="Last Response Speed">
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span id="speedValue">Ready</span>
+        </div>
       </div>
     </div>
 
+    <!-- MAIN BODY -->
     <div class="body">
+      <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
-        <button class="new-chat" id="newChatBtn">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <button class="new-chat" id="newChatBtn" title="Start new conversation (Ctrl+N)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span>New chat</span>
+          <kbd class="sidebar-kbd">⌘N</kbd>
         </button>
-        <div class="side-label">
-          <span>RECENT</span>
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+
+        <!-- Search History -->
+        <div class="sidebar-search">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="chatSearchInput" placeholder="Search chats..." autocomplete="off" />
         </div>
+
+        <div class="side-label">
+          <span>RECENT CHATS</span>
+          <span class="chats-count" id="chatsCount">0</span>
+        </div>
+
         <div class="recent-list" id="recentList" aria-label="Recent conversations"></div>
+
         <div class="sidebar-foot">
-          <span class="demo-tag">ChatFlow AI</span>
+          <div class="sidebar-actions">
+            <button class="side-foot-btn" id="exportChatsBtn" title="Export conversation as Markdown or JSON">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Export</span>
+            </button>
+            <button class="side-foot-btn" id="clearAllChatsBtn" title="Clear all saved chats">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              <span>Clear</span>
+            </button>
+          </div>
+          <div class="storage-indicator">
+            <span class="demo-tag">ChatFlow AI v2.0 • Local Storage</span>
+          </div>
         </div>
       </aside>
 
+      <!-- PANELS CONTAINER -->
       <main class="main" id="main">
+        <!-- 1. CHAT PANEL -->
         <section class="panel active" data-panel="chat">
           <div class="chat-scroll" id="chatScroll">
+            <!-- EMPTY WELCOME STATE -->
             <div class="chat-empty" id="chatEmpty">
               <div class="empty-icon">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               </div>
-              <h1>What's on your mind?</h1>
-              <p>Ask a question or pick up an idea. Your conversations stay in this browser.</p>
+              <h1>How can I help you today?</h1>
+              <p>Experience real-time streaming, multimodal image analysis, sandbox code execution, and side-by-side model comparison.</p>
+
+              <!-- Category prompt grid -->
               <div class="chip-grid">
-                <button class="chip" data-prompt="Explain a concept in simple terms">Explain a concept in simple terms</button>
-                <button class="chip" data-prompt="Help me think through an idea">Help me think through an idea</button>
-                <button class="chip" data-prompt="Draft a plan for my week">Draft a plan for my week</button>
-                <button class="chip" data-prompt="Write a small Python function">Write a small Python function</button>
-              </div>
-            </div>
-            <div class="messages" id="messages"></div>
-          </div>
-          <form class="composer" id="chatForm">
-            <input id="promptInput" type="text" placeholder="Message ChatFlow" autocomplete="off" />
-            <button type="submit" class="composer-send" id="sendBtn" aria-label="Send">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            </button>
-          </form>
-          <p class="composer-note">Don't enter passwords or API keys.</p>
-        </section>
-
-        <section class="panel" data-panel="compare">
-          <div class="panel-head">
-            <h2><span class="head-icon">⚖</span> Compare models</h2>
-            <p>Send one prompt to DeepSeek and Gemini simultaneously to compare their outputs.</p>
-          </div>
-          <div class="compare-form">
-            <div class="compare-label">Choose a prompt</div>
-            <div class="chip-row">
-              <button class="chip chip-sm" data-prompt="How do I balance studying with personal projects?">How do I balance studying with personal projects?</button>
-              <button class="chip chip-sm" data-prompt="Explain external entities and processes in a Data Flow Diagram.">Explain external entities and processes in a Data Flow Diagram.</button>
-              <button class="chip chip-sm" data-prompt="What is the difference between TCP and UDP?">What is the difference between TCP and UDP?</button>
-              <button class="chip chip-sm" data-prompt="Write a Python function to calculate Fibonacci numbers.">Write a Python function to calculate Fibonacci numbers.</button>
-            </div>
-            <div class="compare-input-row">
-              <input class="compare-input" id="compareInput" type="text" placeholder="Or ask your own question" />
-              <button class="btn-primary" id="compareBtn">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                Compare
-              </button>
-            </div>
-          </div>
-          <div class="compare-results" id="compareResults"></div>
-        </section>
-
-        <section class="panel" data-panel="studio">
-          <div class="panel-head">
-            <h2><span class="head-icon">&lt;/&gt;</span> A small code workspace</h2>
-            <p>Edit sample files and run the code in a safe sandbox.</p>
-          </div>
-          <div class="studio">
-            <div class="studio-files">
-              <div class="studio-files-label">FILES</div>
-              <button class="file-item active" data-file="main.py">
-                <span class="file-dot dot-py"></span> main.py
-              </button>
-              <button class="file-item" data-file="index.html">
-                <span class="file-dot dot-html"></span> index.html
-              </button>
-              <button class="file-item" data-file="styles.css">
-                <span class="file-dot dot-css"></span> styles.css
-              </button>
-            </div>
-            <div class="studio-editor">
-              <div class="editor-head">
-                <span class="editor-file" id="editorFile">main.py</span>
-                <button class="btn-run" id="runBtn">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><polygon points="6 4 20 12 6 20"/></svg>
-                  Run Code
+                <button class="chip" data-prompt="Explain quantum computing in simple terms with an analogy">
+                  <span class="chip-icon">💡</span>
+                  <div class="chip-text">
+                    <strong>Explain quantum computing</strong>
+                    <small>Intuitive analogy and fundamentals</small>
+                  </div>
+                </button>
+                <button class="chip" data-prompt="Write a Python script to calculate Fibonacci and measure execution time">
+                  <span class="chip-icon">🐍</span>
+                  <div class="chip-text">
+                    <strong>Python code & sandbox</strong>
+                    <small>Algorithms, data structures & test</small>
+                  </div>
+                </button>
+                <button class="chip" data-prompt="Compare TCP vs UDP protocols with a trade-off table">
+                  <span class="chip-icon">⚖️</span>
+                  <div class="chip-text">
+                    <strong>TCP vs UDP comparison</strong>
+                    <small>Networking performance & architecture</small>
+                  </div>
+                </button>
+                <button class="chip" data-prompt="Help me design a clean modern REST API architecture">
+                  <span class="chip-icon">🚀</span>
+                  <div class="chip-text">
+                    <strong>API Architecture Design</strong>
+                    <small>Best practices, patterns & scalability</small>
+                  </div>
                 </button>
               </div>
-              <pre class="editor-code" id="editorCode"><code># ChatFlow Python Workspace
-def fibonacci(n):
-    a, b = 0, 1
-    result = []
-    for _ in range(n):
-        result.append(a)
-        a, b = b, a + b
-    return result
+            </div>
 
-print(fibonacci(10))</code></pre>
-            </div>
+            <!-- MESSAGES CONTAINER -->
+            <div class="messages" id="messages"></div>
           </div>
-          <div class="studio-output">
-            <div class="output-head">
-              <span class="output-label">&gt;_ Output</span>
+
+          <!-- COMPOSER -->
+          <div class="composer-container">
+            <!-- Attachment preview carousel -->
+            <div class="attachments-preview" id="attachmentsPreview" hidden></div>
+
+            <form class="composer" id="chatForm">
+              <!-- File Attachment Button -->
+              <input type="file" id="fileInput" accept="image/*,.txt,.py,.js,.json,.csv,.md" multiple hidden />
+              <button type="button" class="composer-btn" id="attachBtn" title="Attach image or text file">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </button>
+
+              <!-- Auto-expanding Input Area -->
+              <textarea
+                id="promptInput"
+                placeholder="Ask ChatFlow anything, paste code, or drop an image..."
+                rows="1"
+                autocomplete="off"
+              ></textarea>
+
+              <!-- Voice Input Button (Speech-to-Text) -->
+              <button type="button" class="composer-btn mic-btn" id="voiceBtn" title="Voice dictation (Speech to text)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              </button>
+
+              <!-- Stop Stream Button (Visible only during generation) -->
+              <button type="button" class="composer-stop" id="stopBtn" title="Stop generating" hidden>
+                <span class="stop-icon"></span>
+              </button>
+
+              <!-- Submit / Send Button -->
+              <button type="submit" class="composer-send" id="sendBtn" title="Send message (Enter)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </form>
+
+            <div class="composer-foot">
+              <span class="foot-hint">Press <strong>Enter ↵</strong> to send, <strong>Shift + Enter</strong> for newline</span>
+              <span class="foot-tokens" id="charCounter">0 chars</span>
             </div>
-            <div class="output-body" id="outputBody">
-              <div class="banner banner-neutral">
-                <span class="banner-icon">i</span>
-                <span><strong>READY</strong><br/>Select "Run Code" to execute.</span>
-              </div>
-            </div>
-            <div class="output-foot">Edits stay in this page session. Sandbox execution.</div>
           </div>
         </section>
 
+        <!-- 2. COMPARE PANEL (MODEL ARENA) -->
+        <section class="panel" data-panel="compare">
+          <div class="panel-head">
+            <h2>
+              <span class="head-icon">⚖️</span>
+              <span>Model Comparison Arena</span>
+            </h2>
+            <p>Send a prompt simultaneously to two models to compare generation speed, reasoning depth, and latency in real time.</p>
+          </div>
+
+          <div class="compare-form">
+            <div class="compare-selectors-row">
+              <div class="compare-selector-col">
+                <label>Model A</label>
+                <select id="compareModelA" class="field-select">
+                  <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Google AI)</option>
+                  <option value="gemini-2.5-pro">Gemini 2.5 Pro (Google AI)</option>
+                  <option value="groq-llama-3.3-70b">Groq Llama 3.3 70B</option>
+                  <option value="groq-mixtral">Groq Mixtral 8x7B</option>
+                </select>
+              </div>
+              <div class="compare-vs">VS</div>
+              <div class="compare-selector-col">
+                <label>Model B</label>
+                <select id="compareModelB" class="field-select">
+                  <option value="groq-llama-3.3-70b" selected>Groq Llama 3.3 70B (Groq)</option>
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                  <option value="groq-mixtral">Groq Mixtral 8x7B</option>
+                  <option value="groq-llama3-8b">Groq Llama 3 8B (Instant)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="compare-label" style="margin-top: 14px;">Select or customize prompt</div>
+            <div class="chip-row">
+              <button class="chip chip-sm" data-prompt="What is the difference between TCP and UDP? Provide a trade-off comparison.">TCP vs UDP</button>
+              <button class="chip chip-sm" data-prompt="Explain how public-key cryptography works using Alice and Bob.">Public Key Crypto</button>
+              <button class="chip chip-sm" data-prompt="Write an efficient Python function to solve the Two Sum problem.">Two Sum Python</button>
+              <button class="chip chip-sm" data-prompt="How do I balance deep learning study with shipping production projects?">Learning vs Shipping</button>
+            </div>
+
+            <div class="compare-input-row">
+              <input class="compare-input" id="compareInput" type="text" placeholder="Type a prompt or choose one above..." />
+              <button class="btn-primary" id="compareBtn">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>Run Arena</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="compare-results" id="compareResults">
+            <div class="empty-arena-placeholder">
+              <span class="arena-icon">⚔️</span>
+              <h3>No comparison running</h3>
+              <p>Pick a question above and click <strong>Run Arena</strong> to benchmark both models simultaneously.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. STUDIO PANEL (CODE PLAYGROUND) -->
+        <section class="panel" data-panel="studio">
+          <div class="panel-head">
+            <h2>
+              <span class="head-icon">&lt;/&gt;</span>
+              <span>Code Studio & Sandbox</span>
+            </h2>
+            <p>Live Python execution with server sandbox and real-time interactive HTML/CSS/JS preview.</p>
+          </div>
+
+          <div class="studio">
+            <!-- Files Sidebar -->
+            <div class="studio-files">
+              <div class="studio-files-label">WORKSPACE FILES</div>
+              <button class="file-item active" data-file="main.py">
+                <span class="file-dot dot-py"></span>
+                <span>main.py</span>
+                <span class="file-tag">Python 3</span>
+              </button>
+              <button class="file-item" data-file="index.html">
+                <span class="file-dot dot-html"></span>
+                <span>index.html</span>
+                <span class="file-tag">HTML</span>
+              </button>
+              <button class="file-item" data-file="styles.css">
+                <span class="file-dot dot-css"></span>
+                <span>styles.css</span>
+                <span class="file-tag">CSS</span>
+              </button>
+              <button class="file-item" data-file="script.js">
+                <span class="file-dot dot-js"></span>
+                <span>script.js</span>
+                <span class="file-tag">JS</span>
+              </button>
+            </div>
+
+            <!-- Code Editor -->
+            <div class="studio-editor">
+              <div class="editor-head">
+                <div class="editor-head-left">
+                  <span class="editor-file" id="editorFile">main.py</span>
+                  <span class="editor-badge" id="editorLangBadge">Python 3.14</span>
+                </div>
+                <div class="editor-head-actions">
+                  <button class="btn-secondary" id="aiExplainCodeBtn" title="Ask AI to explain this code in Chat">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <span>Explain</span>
+                  </button>
+                  <button class="btn-secondary" id="aiFixCodeBtn" title="Ask AI to debug & optimize this code">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                    <span>Fix with AI</span>
+                  </button>
+                  <button class="btn-run" id="runBtn" title="Execute Code (Ctrl+Enter)">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><polygon points="6 4 20 12 6 20"/></svg>
+                    <span>Run Code</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Real Editable Code Editor with Line Numbers -->
+              <div class="editor-container">
+                <div class="editor-gutter" id="editorGutter">1</div>
+                <textarea class="editor-textarea" id="editorTextarea" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Studio Output Area (Split: Console vs Live Preview) -->
+          <div class="studio-output">
+            <div class="output-tabs">
+              <button class="output-tab active" data-out="console">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                <span>Console Terminal</span>
+              </button>
+              <button class="output-tab" data-out="preview">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                <span>Live Web Preview</span>
+              </button>
+              <div class="output-actions">
+                <button class="out-btn" id="clearConsoleBtn" title="Clear console output">Clear</button>
+              </div>
+            </div>
+
+            <!-- Console Output Pane -->
+            <div class="output-pane active" id="paneConsole">
+              <div class="output-body" id="outputBody">
+                <div class="banner banner-neutral">
+                  <span class="banner-icon">i</span>
+                  <span><strong>SANDBOX READY</strong><br/>Click "Run Code" or press <kbd>Ctrl+Enter</kbd> to execute in a secure sandbox.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Web Preview Pane -->
+            <div class="output-pane" id="panePreview">
+              <iframe id="previewFrame" sandbox="allow-scripts" title="Studio Web Preview"></iframe>
+            </div>
+
+            <div class="output-foot">
+              <span>Environment: Python 3.14 & Node.js 24 • Execution timeout: 5s • Safe sandbox isolation</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. SETTINGS PANEL -->
         <section class="panel" data-panel="settings">
           <div class="panel-head">
-            <h2><span class="head-icon">⚙</span> Settings</h2>
-            <p>Your preferences are saved in this browser.</p>
+            <h2>
+              <span class="head-icon">⚙️</span>
+              <span>Workspace Preferences</span>
+            </h2>
+            <p>Manage your Gemini and Groq API keys directly in your browser without editing files. All settings persist locally.</p>
           </div>
 
+          <!-- API KEYS CARD -->
           <div class="settings-card">
             <div class="settings-card-head">
               <span class="settings-icon">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></svg>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </span>
               <div>
-                <strong>Model preferences</strong>
-                <small>Choose the default model selected when ChatFlow opens.</small>
+                <strong>Direct API Keys (Optional)</strong>
+                <small>Keys are stored safely in your browser's private local storage. If not set, server environment keys or Demo Mode are used.</small>
               </div>
             </div>
-            <label class="field">
-              <span class="field-label">Default model</span>
-              <select class="field-select" id="settingsModel">
-                <option value="Flow Reason">Gemini (Reasoning)</option>
-                <option value="Flow Fast">DeepSeek (Fast)</option>
-              </select>
+
+            <!-- Gemini Key -->
+            <div class="key-field-group">
+              <label class="field-label" for="customGeminiKey">
+                <span>Google Gemini API Key</span>
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="key-link">Get Free Gemini Key ↗</a>
+              </label>
+              <div class="input-with-button">
+                <input type="password" id="customGeminiKey" class="field-input" placeholder="AIzaSy..." autocomplete="off" />
+                <button type="button" class="btn-reveal" data-target="customGeminiKey">👁️</button>
+                <button type="button" class="btn-test" id="testGeminiKeyBtn">Test</button>
+              </div>
+              <span class="key-status-msg" id="geminiKeyStatus"></span>
+            </div>
+
+            <!-- Groq Key -->
+            <div class="key-field-group" style="margin-top: 14px;">
+              <label class="field-label" for="customGroqKey">
+                <span>Groq API Key</span>
+                <a href="https://console.groq.com/keys" target="_blank" rel="noopener" class="key-link">Get Free Groq Key ↗</a>
+              </label>
+              <div class="input-with-button">
+                <input type="password" id="customGroqKey" class="field-input" placeholder="gsk_..." autocomplete="off" />
+                <button type="button" class="btn-reveal" data-target="customGroqKey">👁️</button>
+                <button type="button" class="btn-test" id="testGroqKeyBtn">Test</button>
+              </div>
+              <span class="key-status-msg" id="groqKeyStatus"></span>
+            </div>
+
+            <div class="settings-actions">
+              <button class="btn-primary" id="saveKeysBtn">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <span>Save API Keys</span>
+              </button>
+              <button class="btn-secondary" id="clearKeysBtn">Remove Keys</button>
+            </div>
+          </div>
+
+          <!-- MODEL PREFERENCES CARD -->
+          <div class="settings-card">
+            <div class="settings-card-head">
+              <span class="settings-icon">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </span>
+              <div>
+                <strong>Model Hyperparameters</strong>
+                <small>Tune temperature, persona and system instructions.</small>
+              </div>
+            </div>
+
+            <div class="settings-grid">
+              <label class="field">
+                <span class="field-label">Default Model</span>
+                <select class="field-select" id="settingsModel">
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default)</option>
+                  <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                  <option value="groq-llama-3.3-70b">Groq Llama 3.3 70B</option>
+                  <option value="groq-mixtral">Groq Mixtral 8x7B</option>
+                  <option value="groq-llama3-8b">Groq Llama 3 8B</option>
+                  <option value="demo-mode">Interactive Demo Assistant</option>
+                </select>
+              </label>
+
+              <div class="field">
+                <div class="field-header">
+                  <span class="field-label">Temperature: <strong id="tempDisplay">0.7</strong></span>
+                  <small class="field-desc">0.0 = Precise • 1.0 = Creative</small>
+                </div>
+                <input type="range" min="0" max="1" step="0.05" value="0.7" id="temperatureSlider" class="range-slider" />
+              </div>
+            </div>
+
+            <label class="field" style="margin-top: 14px;">
+              <span class="field-label">Custom System Instructions (Prompt Persona)</span>
+              <textarea id="customSystemPrompt" class="field-textarea" rows="3" placeholder="e.g. You are an expert principal software engineer with 15 years of distributed systems experience. Be concise, precise, and prioritize clean code."></textarea>
             </label>
           </div>
 
+          <!-- INTERFACE & SOUND CARD -->
           <div class="settings-card">
             <div class="settings-card-head">
               <span class="settings-icon">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
               </span>
               <div>
-                <strong>Interface</strong>
-                <small>Adjust how the app uses available space.</small>
+                <strong>Interface & Display</strong>
+                <small>Customize theme, spacing, and audio feedback.</small>
               </div>
             </div>
-            <label class="checkbox-row">
-              <input type="checkbox" id="compactMode" />
+
+            <div class="settings-grid">
+              <label class="field">
+                <span class="field-label">Theme Mode</span>
+                <select class="field-select" id="themeSelect">
+                  <option value="dark">Dark Theme (Default)</option>
+                  <option value="light">Light Theme</option>
+                  <option value="system">Follow System</option>
+                </select>
+              </label>
+
+              <label class="checkbox-row" style="margin-top: 18px;">
+                <input type="checkbox" id="compactMode" />
+                <span>
+                  <strong>Compact density mode</strong>
+                  <small>Reduces padding and message gaps for power users.</small>
+                </span>
+              </label>
+            </div>
+
+            <label class="checkbox-row" style="margin-top: 10px;">
+              <input type="checkbox" id="soundEffects" checked />
               <span>
-                <strong>Compact mode</strong>
-                <small>Remember the compact display preference.</small>
+                <strong>Subtle audio cues</strong>
+                <small>Play soft audio chimes when streaming finishes or on error.</small>
               </span>
             </label>
-            <button class="btn-primary btn-confirm" id="confirmPrefs">Confirm preferences</button>
+
+            <button class="btn-primary" id="confirmPrefs" style="margin-top: 16px;">Save Preferences</button>
           </div>
         </section>
       </main>
     </div>
+
+    <!-- COMMAND PALETTE MODAL (CMD+K) -->
+    <div class="modal-backdrop" id="cmdPaletteModal" hidden>
+      <div class="palette-card">
+        <div class="palette-input-wrap">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="paletteInput" placeholder="Type a command or search..." autocomplete="off" />
+          <kbd>ESC</kbd>
+        </div>
+        <div class="palette-results" id="paletteResults"></div>
+      </div>
+    </div>
+
+    <!-- SHORTCUTS CHEAT SHEET MODAL (?) -->
+    <div class="modal-backdrop" id="shortcutsModal" hidden>
+      <div class="modal-card">
+        <div class="modal-head">
+          <h3>Keyboard Shortcuts</h3>
+          <button class="modal-close" id="closeShortcutsBtn">&times;</button>
+        </div>
+        <div class="shortcuts-grid">
+          <div class="shortcut-row"><span class="shortcut-desc">Send message</span><kbd>Enter ↵</kbd></div>
+          <div class="shortcut-row"><span class="shortcut-desc">New line in input</span><kbd>Shift + Enter</kbd></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Open Command Palette</span><kbd>⌘K / Ctrl+K</kbd></div>
+          <div class="shortcut-row"><span class="shortcut-desc">New conversation</span><kbd>⌘N / Ctrl+N</kbd></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Execute code in Studio</span><kbd>⌘↵ / Ctrl+Enter</kbd></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Switch to Chat</span><kbd>Ctrl + 1</kbd></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Switch to Compare</span><kbd>Ctrl + 2</kbd></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Switch to Studio</span><kbd>Ctrl + 3</kbd></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Switch to Settings</span><kbd>Ctrl + 4</kbd></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Close any modal</span><kbd>Esc</kbd></div>
+        </div>
+      </div>
+    </div>
   </div>
+
   <script src="/app.js" defer></script>
 </body>
 </html>

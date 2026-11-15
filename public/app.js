@@ -1,438 +1,1839 @@
-const $ = (s) => document.querySelector(s);
-const $$ = (s) => document.querySelectorAll(s);
+/**
+ * ChatFlow AI v2.0 - Core Frontend Application
+ * Real-time SSE streaming, multimodal attachments, sandbox code playground,
+ * model comparison arena, voice dictation, and speech synthesis.
+ */
 
-/* ---------- state ---------- */
+// DOM Helper shortcuts
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => document.querySelectorAll(selector);
+
+// -----------------------------------------------------------------------------
+// STATE MANAGEMENT
+// -----------------------------------------------------------------------------
 let history = [];
 let conversations = [];
 let activeConversationId = null;
 let busy = false;
-let toastTimer;
-const STORAGE_KEY = 'chatflow-history-v2';
-const CONVERSATIONS_KEY = 'chatflow-conversations-v1';
-const PREF_KEY = 'chatflow-prefs-v2';
-const CLIENT_MAX_ATTEMPTS = 3;
-const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
+let abortController = null;
+let toastTimer = null;
+let speechUtterance = null;
+let recognition = null;
+let isRecording = false;
 
-/* ---------- tabs ---------- */
+// Attachment State
+let attachedImages = [];
+
+// Studio Files State
+const STUDIO_SAMPLE_FILES = {
+  'main.py': `# ChatFlow Python Workspace (Python 3.14 Sandbox)
+def fibonacci_generator(n: int):
+    """Generate first n Fibonacci numbers."""
+    a, b = 0, 1
+    result = []
+    for _ in range(n):
+        result.append(a)
+        a, b = b, a + b
+    return result
+
+# Calculate and benchmark
+import time
+start = time.perf_counter()
+seq = fibonacci_generator(15)
+elapsed = (time.perf_counter() - start) * 1000
+
+print(f"Fibonacci (n=15): {seq}")
+print(f"Executed in: {elapsed:.3f} ms")
+`,
+  'index.html': `<!doctype html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      display: grid;
+      place-items: center;
+      min-height: 90vh;
+      background: #0f172a;
+      color: #f8fafc;
+      margin: 0;
+    }
+    .card {
+      background: #1e293b;
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    }
+    button {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: transform 0.1s;
+    }
+    button:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Interactive Canvas Demo</h2>
+    <p id="counterText">Click count: 0</p>
+    <button id="clickBtn">Click Me!</button>
+  </div>
+  <script>
+    let count = 0;
+    document.getElementById('clickBtn').addEventListener('click', () => {
+      count++;
+      document.getElementById('counterText').textContent = 'Click count: ' + count;
+    });
+  <\/script>
+</body>
+</html>`,
+  'styles.css': `/* CSS Workspace */
+:root {
+  --primary-accent: #10b981;
+  --bg-gradient: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+}
+
+.gradient-title {
+  background: var(--bg-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+}
+`,
+  'script.js': `// JavaScript Workspace (Node.js VM Sandbox)
+const sampleData = [
+  { name: 'Gemini 2.5 Flash', tokensPerSec: 165, latencyMs: 240 },
+  { name: 'Groq Llama 3.3', tokensPerSec: 280, latencyMs: 140 },
+  { name: 'Groq Mixtral', tokensPerSec: 220, latencyMs: 190 }
+];
+
+console.log("=== Performance Benchmark Analysis ===");
+sampleData.forEach(item => {
+  console.log(\`Model: \${item.name} | Speed: \${item.tokensPerSec} t/s | Latency: \${item.latencyMs}ms\`);
+});
+
+const fastest = sampleData.reduce((prev, curr) => curr.tokensPerSec > prev.tokensPerSec ? curr : prev);
+console.log(\`\\nFastest engine: \${fastest.name} (\${fastest.tokensPerSec} t/s)\`);
+`
+};
+
+let studioFiles = { ...STUDIO_SAMPLE_FILES };
+let activeStudioFile = 'main.py';
+
+// Personas dictionary
+const PERSONAS = {
+  general: 'You are ChatFlow AI, a helpful, intelligent, and highly knowledgeable AI assistant.',
+  coder: 'You are an elite principal software engineer and tech lead. You write clean, modular, production-ready code with clear architectural explanations and best practices.',
+  writer: 'You are an award-winning creative author and copywriter. You write engaging, nuanced, and captivating prose.',
+  tutor: 'You are a warm, supportive academic tutor. You explain complex STEM and humanities concepts using first principles, intuitive analogies, and step-by-step guidance.',
+  concise: 'You are an ultra-concise executive assistant. You answer with minimal words, bullet points, and zero fluff.'
+};
+let activePersona = 'general';
+
+// Storage Keys
+const CONVERSATIONS_KEY = 'chatflow-conversations-v2';
+const ACTIVE_CONV_KEY = 'chatflow-active-conv-v2';
+const PREFS_KEY = 'chatflow-preferences-v2';
+const API_KEYS_KEY = 'chatflow-api-keys-v2';
+
+// -----------------------------------------------------------------------------
+// AUDIO SYNTHESIS (WEB AUDIO API CHIMES)
+// -----------------------------------------------------------------------------
+let audioCtx = null;
+function playChime(type = 'success') {
+  const prefs = getPrefs();
+  if (!prefs.soundEffects) return;
+
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+    if (type === 'success') {
+      osc.frequency.setValueAtTime(523.25, now); // C5
+      osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.08); // E5
+      osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.16); // G5
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    } else {
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.15);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    }
+  } catch {
+    // Audio context may be restricted before user gesture
+  }
+}
+
+// -----------------------------------------------------------------------------
+// TOAST NOTIFICATIONS
+// -----------------------------------------------------------------------------
+const toastEl = document.createElement('div');
+toastEl.className = 'toast';
+document.body.appendChild(toastEl);
+
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 3000);
+}
+
+// -----------------------------------------------------------------------------
+// PREFERENCES & API KEYS HELPERS
+// -----------------------------------------------------------------------------
+function getPrefs() {
+  try {
+    return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function savePrefs(newPrefs) {
+  const current = getPrefs();
+  const merged = { ...current, ...newPrefs };
+  localStorage.setItem(PREFS_KEY, JSON.stringify(merged));
+  return merged;
+}
+
+function getStoredApiKeys() {
+  try {
+    return JSON.parse(localStorage.getItem(API_KEYS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveStoredApiKeys(keys) {
+  localStorage.setItem(API_KEYS_KEY, JSON.stringify(keys));
+}
+
+// -----------------------------------------------------------------------------
+// THEME & APPEARANCE
+// -----------------------------------------------------------------------------
+function applyTheme(theme) {
+  if (theme === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+  } else {
+    document.documentElement.setAttribute('data-theme', theme || 'dark');
+  }
+}
+
+$('#themeToggleBtn').addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  savePrefs({ theme: next });
+  $('#themeSelect').value = next;
+  showToast(`Switched to ${next} theme.`);
+});
+
+// -----------------------------------------------------------------------------
+// BACKEND STATUS HEALTH CHECK
+// -----------------------------------------------------------------------------
+async function checkBackendHealth() {
+  const badge = $('#backendStatusBadge');
+  const text = $('#backendStatusText');
+
+  try {
+    const res = await fetch('/api/health');
+    const data = await res.json();
+
+    const storedKeys = getStoredApiKeys();
+    const hasKeys =
+      data.providers.gemini.configured ||
+      data.providers.groq.configured ||
+      Boolean(storedKeys.geminiKey || storedKeys.groqKey);
+
+    if (hasKeys) {
+      badge.classList.remove('warning');
+      text.textContent = 'AI Online';
+      badge.title = 'Gemini & Groq API engines connected.';
+    } else {
+      badge.classList.add('warning');
+      text.textContent = 'Demo Mode';
+      badge.title = 'Using Interactive Demo Mode. Add API keys in Settings to connect live models.';
+    }
+  } catch {
+    badge.classList.add('warning');
+    text.textContent = 'Offline';
+    badge.title = 'Backend server unreachable.';
+  }
+}
+
+// -----------------------------------------------------------------------------
+// TABS NAVIGATION
+// -----------------------------------------------------------------------------
+function switchTab(tabId) {
+  $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === tabId));
+  $$('.panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === tabId));
+  document.body.classList.remove('sidebar-open');
+
+  if (tabId === 'chat') {
+    $('#promptInput')?.focus();
+  } else if (tabId === 'studio') {
+    renderStudio();
+  }
+}
+
 $$('.tab').forEach((tab) => {
-  tab.addEventListener('click', () => {
-    const target = tab.dataset.tab;
-    $$('.tab').forEach((t) => t.classList.toggle('active', t === tab));
-    $$('.panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === target));
-    const left = $('#subheaderLeft');
-    if (target === 'chat') left.textContent = 'New conversation';
-    if (target === 'compare') left.textContent = 'Compare';
-    if (target === 'studio') left.textContent = 'Studio';
-    if (target === 'settings') left.textContent = 'Preferences';
+  tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+});
+
+// -----------------------------------------------------------------------------
+// MOBILE SIDEBAR TOGGLE
+// -----------------------------------------------------------------------------
+const mobileMenuBtn = $('#mobileMenuBtn');
+const sidebarOverlay = document.createElement('div');
+sidebarOverlay.className = 'sidebar-overlay';
+document.body.appendChild(sidebarOverlay);
+
+mobileMenuBtn.addEventListener('click', () => document.body.classList.toggle('sidebar-open'));
+sidebarOverlay.addEventListener('click', () => document.body.classList.remove('sidebar-open'));
+
+// -----------------------------------------------------------------------------
+// PERSONA SELECTORS
+// -----------------------------------------------------------------------------
+$$('.persona-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    $$('.persona-chip').forEach((c) => c.classList.remove('active'));
+    chip.classList.add('active');
+    activePersona = chip.dataset.persona || 'general';
+    showToast(`Persona switched to: ${chip.textContent.trim()}`);
   });
 });
 
-/* ---------- mobile menu ---------- */
-const menuBtn = document.querySelector('.brand-mark');
-const overlay = document.createElement('div');
-overlay.className = 'sidebar-overlay';
-document.body.appendChild(overlay);
-menuBtn.addEventListener('click', () => document.body.classList.toggle('sidebar-open'));
-overlay.addEventListener('click', () => document.body.classList.remove('sidebar-open'));
-
-/* ---------- toast ---------- */
-const toast = document.createElement('div');
-toast.className = 'toast';
-document.body.appendChild(toast);
-function showToast(msg) {
-  toast.textContent = msg;
-  toast.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
+// -----------------------------------------------------------------------------
+// CONVERSATIONS MANAGEMENT & PERSISTENCE
+// -----------------------------------------------------------------------------
+function loadConversations() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || '[]');
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
 }
 
-/* ---------- utils ---------- */
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
-
-/* ---------- chat elements ---------- */
-const form = $('#chatForm');
-const input = $('#promptInput');
-const messagesEl = $('#messages');
-const chatEmpty = $('#chatEmpty');
-const sendBtn = $('#sendBtn');
-
-/* ---------- chat persistence ---------- */
-function loadHistory() {
-  try { const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
-}
-function saveHistory() {
+function saveConversations() {
   const active = conversations.find((c) => c.id === activeConversationId);
   if (active) {
     active.messages = history.slice();
     active.updatedAt = Date.now();
     if (!active.title || active.title === 'New conversation') {
       const firstUser = history.find((m) => m.role === 'user' && m.text.trim());
-      if (firstUser) active.title = firstUser.text.trim().slice(0, 34) + (firstUser.text.trim().length > 34 ? '…' : '');
+      if (firstUser) {
+        active.title = firstUser.text.trim().slice(0, 32) + (firstUser.text.trim().length > 32 ? '…' : '');
+      }
     }
   }
+
   try {
     localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
-    if (activeConversationId) localStorage.setItem('chatflow-active-conversation-v1', activeConversationId);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(-40)));
-  } catch { showToast('Could not save chats. Browser storage may be full.'); }
-  renderRecentChats();
+    if (activeConversationId) {
+      localStorage.setItem(ACTIVE_CONV_KEY, activeConversationId);
+    }
+  } catch {
+    showToast('Failed to save to localStorage. Storage may be full.');
+  }
+
+  renderRecentList();
+  updateChatTitleDisplay();
 }
+
 function createConversation() {
-  const conversation = {
-    id: (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`),
-    title: 'New conversation', messages: [], createdAt: Date.now(), updatedAt: Date.now()
+  const newConv = {
+    id: (crypto.randomUUID ? crypto.randomUUID() : `cf-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+    title: 'New conversation',
+    messages: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   };
-  conversations.unshift(conversation);
-  activeConversationId = conversation.id;
+
+  conversations.unshift(newConv);
+  activeConversationId = newConv.id;
   history = [];
-  saveHistory();
-  renderConversation();
-  renderRecentChats();
-  $('#subheaderLeft').textContent = conversation.title;
+
+  saveConversations();
+  renderChatMessages();
+  $('#promptInput').value = '';
+  $('#promptInput').focus();
   document.body.classList.remove('sidebar-open');
-  input.value = '';
-  input.focus();
 }
-function renderConversation() {
-  messagesEl.replaceChildren();
-  const hasMessages = history.length > 0;
-  chatEmpty.hidden = hasMessages;
-  for (const item of history) { addMessage(item.role === 'user' ? 'user' : 'assistant', item.text); }
-  scrollChat(true);
-}
+
 function openConversation(id) {
-  if (busy) return showToast('Wait for the current reply to finish.');
-  const conversation = conversations.find((c) => c.id === id);
-  if (!conversation) return;
+  if (busy) {
+    return showToast('Please wait for the current response to finish.');
+  }
+  const conv = conversations.find((c) => c.id === id);
+  if (!conv) return;
+
   activeConversationId = id;
-  history = Array.isArray(conversation.messages) ? conversation.messages.slice() : [];
-  renderConversation();
-  renderRecentChats();
-  $('#subheaderLeft').textContent = conversation.title || 'New conversation';
+  history = Array.isArray(conv.messages) ? conv.messages.slice() : [];
+  renderChatMessages();
+  renderRecentList();
+  updateChatTitleDisplay();
   document.body.classList.remove('sidebar-open');
-  input.focus();
+  $('#promptInput').focus();
 }
-function deleteConversation(id) {
-  const conversation = conversations.find((c) => c.id === id);
-  if (!conversation) return;
-  if (!window.confirm(`Delete "${conversation.title || 'New conversation'}"?`)) return;
+
+function deleteConversation(id, e) {
+  if (e) e.stopPropagation();
+  const conv = conversations.find((c) => c.id === id);
+  if (!conv) return;
+
+  if (!window.confirm(`Delete "${conv.title || 'Conversation'}"?`)) return;
+
   conversations = conversations.filter((c) => c.id !== id);
+
   if (activeConversationId === id) {
-    activeConversationId = null; history = [];
-    if (conversations.length) openConversation(conversations[0].id);
-    else createConversation();
-  } else { saveHistory(); }
-  renderRecentChats();
+    if (conversations.length > 0) {
+      openConversation(conversations[0].id);
+    } else {
+      createConversation();
+    }
+  } else {
+    saveConversations();
+  }
+
   showToast('Conversation deleted.');
 }
-function renderRecentChats() {
+
+function renameConversation(id) {
+  const conv = conversations.find((c) => c.id === id);
+  if (!conv) return;
+
+  const newTitle = window.prompt('Rename conversation:', conv.title || '');
+  if (newTitle && newTitle.trim()) {
+    conv.title = newTitle.trim();
+    saveConversations();
+    showToast('Renamed conversation.');
+  }
+}
+
+function updateChatTitleDisplay() {
+  const active = conversations.find((c) => c.id === activeConversationId);
+  const title = active ? active.title || 'New conversation' : 'New conversation';
+  $('#subheaderLeft').textContent = title;
+  $('#subheaderLeft').title = title;
+}
+
+$('#renameChatBtn').addEventListener('click', () => {
+  if (activeConversationId) renameConversation(activeConversationId);
+});
+
+$('#subheaderLeft').addEventListener('click', () => {
+  if (activeConversationId) renameConversation(activeConversationId);
+});
+
+function renderRecentList(filterQuery = '') {
   const list = $('#recentList');
   if (!list) return;
+
   list.replaceChildren();
-  const sorted = [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
-  if (!sorted.length) {
-    const empty = document.createElement('p');
-    empty.className = 'recent-empty'; empty.textContent = 'No conversations yet';
-    list.appendChild(empty); return;
+
+  const query = (filterQuery || '').toLowerCase().trim();
+  const filtered = conversations
+    .filter((c) => !query || (c.title || '').toLowerCase().includes(query))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  $('#chatsCount').textContent = filtered.length;
+
+  if (filtered.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'recent-empty';
+    empty.textContent = query ? 'No matching conversations' : 'No conversations yet';
+    list.appendChild(empty);
+    return;
   }
-  sorted.forEach((conversation) => {
-    const item = document.createElement('div');
-    item.className = `recent-entry${conversation.id === activeConversationId ? ' active' : ''}`;
-    const open = document.createElement('button');
-    open.type = 'button'; open.className = 'recent-item';
-    open.textContent = conversation.title || 'New conversation';
-    open.title = conversation.title || 'New conversation';
-    open.addEventListener('click', () => openConversation(conversation.id));
-    const del = document.createElement('button');
-    del.type = 'button'; del.className = 'recent-delete'; del.textContent = '×';
-    del.addEventListener('click', () => deleteConversation(conversation.id));
-    item.append(open, del);
-    list.appendChild(item);
+
+  filtered.forEach((conv) => {
+    const row = document.createElement('div');
+    row.className = `recent-entry ${conv.id === activeConversationId ? 'active' : ''}`;
+
+    const titleBtn = document.createElement('button');
+    titleBtn.className = 'recent-item';
+    titleBtn.textContent = conv.title || 'New conversation';
+    titleBtn.title = conv.title || 'New conversation';
+    titleBtn.addEventListener('click', () => openConversation(conv.id));
+
+    const actions = document.createElement('div');
+    actions.className = 'entry-actions';
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'entry-btn';
+    renameBtn.title = 'Rename';
+    renameBtn.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+    renameBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      renameConversation(conv.id);
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'entry-btn delete';
+    delBtn.title = 'Delete';
+    delBtn.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
+    delBtn.addEventListener('click', (e) => deleteConversation(conv.id, e));
+
+    actions.append(renameBtn, delBtn);
+    row.append(titleBtn, actions);
+    list.appendChild(row);
   });
 }
 
-/* ---------- chat rendering ---------- */
-function addMessage(role, text, opts = {}) {
-  const row = document.createElement('div');
-  row.className = `message ${role}`;
-  const av = document.createElement('div');
-  av.className = 'message-avatar';
-  av.textContent = role === 'user' ? 'You' : 'CF';
-  const c = document.createElement('div');
-  c.className = 'message-content';
-  if (role === 'assistant' && !opts.error && text.trim() !== '') {
-    c.innerHTML = DOMPurify.sanitize(marked.parse(text));
-  } else { c.textContent = text; }
-  if (opts.error) c.classList.add('error');
-  row.append(av, c);
-  messagesEl.append(row);
-  return { row, content: c };
-}
-function showTyping() {
-  const row = document.createElement('div');
-  row.className = 'message assistant'; row.id = 'typingIndicator';
-  const av = document.createElement('div');
-  av.className = 'message-avatar'; av.textContent = 'CF';
-  const dots = document.createElement('div');
-  dots.className = 'typing'; dots.innerHTML = '<span></span><span></span><span></span>';
-  row.append(av, dots); messagesEl.append(row);
-}
-function removeTyping() { $('#typingIndicator')?.remove(); }
-function scrollChat(force = false) {
-  const scroller = $('#chatScroll');
-  if (!scroller) return;
-  const isNearBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 150;
-  if (force || isNearBottom) scroller.scrollTop = scroller.scrollHeight;
-}
-
-/* ---------- chat networking ---------- */
-async function postChat(payload) {
-  const r = await fetch('/api/chat', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    const err = new Error(data.error || `Request failed (${r.status})`);
-    err.status = r.status; throw err;
-  }
-  return data;
-}
-function isRetryable(error) {
-  if (!error) return false;
-  if (!error.status) return true;
-  return RETRYABLE_STATUS.has(error.status);
-}
-function attachRetryButton(content, userText) {
-  content.querySelectorAll('.retry-btn').forEach((b) => b.remove());
-  const btn = document.createElement('button');
-  btn.className = 'retry-btn'; btn.type = 'button';
-  btn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> <span>Retry</span>';
-  btn.addEventListener('click', () => {
-    if (busy) return;
-    const row = content.closest('.message');
-    const idx = history.map((h) => h.role + ':' + h.text).lastIndexOf('user:' + userText);
-    if (idx >= 0) { history = history.slice(0, idx); saveHistory(); }
-    row?.remove(); sendMessage(userText, { retry: true });
-  });
-  content.appendChild(document.createElement('br'));
-  content.appendChild(btn);
-}
-
-/* ---------- Typewriter Effect ---------- */
-async function typeWriter(element, text) {
-  element.innerHTML = '';
-  const lines = text.split('\n');
-  let accumulatedHTML = '';
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    for (let j = 0; j < line.length; j += 2) {
-      const currentText = accumulatedHTML + line.substring(0, j + 2);
-      element.innerHTML = DOMPurify.sanitize(currentText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'));
-      scrollChat(false); await sleep(10);
-    }
-    accumulatedHTML += line + '\n';
-    element.innerHTML = DOMPurify.sanitize(marked.parse(accumulatedHTML));
-    await sleep(20);
-  }
-  element.innerHTML = DOMPurify.sanitize(marked.parse(text));
-}
-
-/* ---------- Action Buttons ---------- */
-function addActionButtons(content, text) {
-  const actions = document.createElement('div');
-  actions.className = 'message-actions';
-  
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'action-btn'; copyBtn.title = 'Copy';
-  copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-  copyBtn.onclick = () => { navigator.clipboard.writeText(text); showToast('Copied!'); };
-
-  const retryBtn = document.createElement('button');
-  retryBtn.className = 'action-btn'; retryBtn.title = 'Retry';
-  retryBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>';
-  retryBtn.onclick = () => {
-    if (busy) return;
-    const idx = history.map((h) => h.role + ':' + h.text).lastIndexOf('model:' + text);
-    if (idx > 0) {
-      const userText = history[idx - 1].text;
-      history = history.slice(0, idx - 1); saveHistory();
-      content.closest('.message').remove(); sendMessage(userText, { retry: true });
-    }
-  };
-
-  actions.append(copyBtn, retryBtn);
-  content.appendChild(actions);
-}
-
-/* ---------- send message ---------- */
-async function sendMessage(text, options = {}) {
-  text = String(text || '').trim();
-  if (!text || busy) return;
-  busy = true; sendBtn.disabled = true; input.disabled = true; chatEmpty.hidden = true;
-  history.push({ role: 'user', text });
-  saveHistory(); addMessage('user', text); showTyping(); scrollChat(true);
-
-  let lastError = null;
-  let attempts = 1;
-
-  while (attempts <= CLIENT_MAX_ATTEMPTS) {
-    try {
-      const selectedModel = $('#modelSelect').value;
-      let modelParam = 'gemini'; 
-      if (selectedModel.includes('DeepSeek') || selectedModel.includes('Fast')) { modelParam = 'deepseek'; }
-
-      const data = await postChat({ messages: history, model: modelParam });
-      removeTyping();
-      const answer = String(data.answer || '').trim() || 'No response.';
-      history.push({ role: 'model', text: answer }); saveHistory();
-      const { content } = addMessage('assistant', ''); scrollChat(true); await sleep(100);
-      await typeWriter(content, answer); addActionButtons(content, answer);
-      busy = false; sendBtn.disabled = false; input.disabled = false; input.focus(); scrollChat(false);
-      return;
-    } catch (e) {
-      lastError = e;
-      const canRetry = isRetryable(e) && attempts < CLIENT_MAX_ATTEMPTS;
-      if (!canRetry) break;
-      const delay = 1000 * Math.pow(2, attempts - 1);
-      showToast(`Retrying in ${delay / 1000}s…`);
-      await sleep(delay); attempts++;
-    }
-  }
-
-  removeTyping();
-  const msg = lastError?.message || 'Something went wrong.';
-  const { content } = addMessage('assistant', msg, { error: true });
-  if (isRetryable(lastError)) attachRetryButton(content, text);
-  else showToast(msg);
-  busy = false; sendBtn.disabled = false; input.disabled = false; input.focus(); scrollChat(true);
-}
-
-/* ---------- form + suggestions ---------- */
-form.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const text = input.value;
-  if (!text.trim()) return;
-  input.value = ''; sendMessage(text);
+// Live search in conversations
+$('#chatSearchInput').addEventListener('input', (e) => {
+  renderRecentList(e.target.value);
 });
-$$('.chip[data-prompt]').forEach((chip) => {
-  chip.addEventListener('click', () => {
-    const prompt = chip.dataset.prompt;
-    if (chip.closest('.panel[data-panel="compare"]')) $('#compareInput').value = prompt;
-    else { input.value = prompt; input.focus(); }
-  });
-});
+
+// New Chat button
 $('#newChatBtn').addEventListener('click', () => {
-  if (busy) return showToast('Wait for the current reply to finish.');
+  if (busy) return showToast('Please wait for the current reply to finish.');
   createConversation();
 });
 
-/* ---------- COMPARE ---------- */
-$('#compareBtn').addEventListener('click', async () => {
-  const v = $('#compareInput').value.trim();
-  if (!v) return showToast('Type or choose a prompt first.');
-  const wrap = $('#compareResults');
-  wrap.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">Comparing live models...</div>';
-  showToast('Running comparison...');
-  try {
-    const r = await fetch('/api/compare', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: v })
+// Clear all chats
+$('#clearAllChatsBtn').addEventListener('click', () => {
+  if (!conversations.length) return showToast('No conversations to clear.');
+  if (window.confirm('Are you sure you want to delete ALL conversations? This cannot be undone.')) {
+    conversations = [];
+    localStorage.removeItem(CONVERSATIONS_KEY);
+    localStorage.removeItem(ACTIVE_CONV_KEY);
+    createConversation();
+    showToast('All conversations cleared.');
+  }
+});
+
+// Export conversations
+$('#exportChatsBtn').addEventListener('click', () => {
+  const active = conversations.find((c) => c.id === activeConversationId);
+  if (!active || !history.length) return showToast('No chat history to export.');
+
+  const mdContent = `# ChatFlow AI Export: ${active.title || 'Conversation'}\n*Exported on ${new Date().toLocaleString()}*\n\n` +
+    history.map((m) => `### **${m.role === 'user' ? 'User' : 'ChatFlow AI'}**:\n\n${m.text}\n\n---`).join('\n\n');
+
+  const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${(active.title || 'conversation').replace(/[^a-zA-Z0-9_-]/g, '_')}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported conversation as Markdown.');
+});
+
+// -----------------------------------------------------------------------------
+// MARKDOWN & SYNTAX HIGHLIGHTING RENDERING
+// -----------------------------------------------------------------------------
+function renderMarkdownContent(rawText) {
+  if (!rawText) return '';
+
+  // Configure marked if available
+  if (window.marked) {
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
     });
-    const data = await r.json();
+  }
+
+  let html = window.marked ? marked.parse(rawText) : rawText;
+
+  // Sanitize with DOMPurify
+  if (window.DOMPurify) {
+    html = DOMPurify.sanitize(html, {
+      ADD_TAGS: ['iframe', 'button', 'span', 'kbd'],
+      ADD_ATTR: ['target', 'class', 'data-code', 'data-lang'],
+    });
+  }
+
+  return html;
+}
+
+// Post-process message DOM: syntax highlighting, math, code block header with copy & send-to-studio buttons
+function enrichMessageElement(contentEl, rawText) {
+  // Highlight code blocks
+  contentEl.querySelectorAll('pre code').forEach((block) => {
+    if (window.hljs) {
+      hljs.highlightElement(block);
+    }
+
+    const pre = block.closest('pre');
+    if (!pre || pre.closest('.code-block-wrapper')) return;
+
+    // Detect language class
+    const langClass = Array.from(block.classList).find((c) => c.startsWith('language-'));
+    const langName = langClass ? langClass.replace('language-', '').toUpperCase() : 'CODE';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'code-block-wrapper';
+
+    const header = document.createElement('div');
+    header.className = 'code-block-header';
+    header.innerHTML = `<span>${langName}</span>`;
+
+    const actions = document.createElement('div');
+    actions.className = 'code-block-actions';
+
+    // Copy Code Button
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'code-action-btn';
+    copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span>';
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(block.textContent);
+      copyBtn.innerHTML = '<span>✓ Copied</span>';
+      setTimeout(() => {
+        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span>';
+      }, 2000);
+      showToast('Code copied to clipboard.');
+    });
+
+    // Send to Studio Button
+    const studioBtn = document.createElement('button');
+    studioBtn.className = 'code-action-btn';
+    studioBtn.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>Open in Studio</span>';
+    studioBtn.addEventListener('click', () => {
+      const code = block.textContent;
+      const lowerLang = langName.toLowerCase();
+      if (lowerLang.includes('py')) {
+        studioFiles['main.py'] = code;
+        activeStudioFile = 'main.py';
+      } else if (lowerLang.includes('html')) {
+        studioFiles['index.html'] = code;
+        activeStudioFile = 'index.html';
+      } else if (lowerLang.includes('css')) {
+        studioFiles['styles.css'] = code;
+        activeStudioFile = 'styles.css';
+      } else {
+        studioFiles['script.js'] = code;
+        activeStudioFile = 'script.js';
+      }
+      switchTab('studio');
+      showToast(`Loaded into Studio (${activeStudioFile})`);
+    });
+
+    actions.append(copyBtn, studioBtn);
+    header.appendChild(actions);
+
+    pre.parentNode.insertBefore(wrapper, pre);
+    wrapper.appendChild(header);
+    wrapper.appendChild(pre);
+  });
+
+  // Render LaTeX math formulas if KaTeX is loaded
+  if (window.renderMathInElement) {
+    try {
+      renderMathInElement(contentEl, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+        ],
+        throwOnError: false,
+      });
+    } catch {
+      // Ignore KaTeX formatting errors
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// CHAT RENDERING
+// -----------------------------------------------------------------------------
+function renderChatMessages() {
+  const container = $('#messages');
+  container.replaceChildren();
+
+  const isEmpty = history.length === 0;
+  $('#chatEmpty').hidden = !isEmpty;
+
+  for (let i = 0; i < history.length; i++) {
+    const item = history[i];
+    appendMessageElement(item.role === 'user' ? 'user' : 'assistant', item.text, {
+      images: item.images,
+      stats: item.stats,
+      index: i,
+    });
+  }
+
+  scrollChatToBottom(true);
+}
+
+function appendMessageElement(role, text, options = {}) {
+  const container = $('#messages');
+  const row = document.createElement('div');
+  row.className = `message ${role}`;
+
+  // Avatar
+  const avatar = document.createElement('div');
+  avatar.className = 'message-avatar';
+  avatar.textContent = role === 'user' ? 'YOU' : 'CF';
+
+  // Body Wrapper
+  const bodyWrap = document.createElement('div');
+  bodyWrap.className = 'message-body-wrap';
+
+  // If message has image attachments
+  if (options.images && options.images.length > 0) {
+    const thumbsWrap = document.createElement('div');
+    thumbsWrap.className = 'msg-attachments';
+    options.images.forEach((img) => {
+      const imgTag = document.createElement('img');
+      imgTag.src = img.data || img;
+      imgTag.className = 'msg-thumb';
+      thumbsWrap.appendChild(imgTag);
+    });
+    bodyWrap.appendChild(thumbsWrap);
+  }
+
+  // Content
+  const content = document.createElement('div');
+  content.className = `message-content ${options.error ? 'error' : ''}`;
+
+  if (role === 'assistant' && !options.error) {
+    content.innerHTML = renderMarkdownContent(text);
+    enrichMessageElement(content, text);
+  } else {
+    content.textContent = text;
+  }
+
+  bodyWrap.appendChild(content);
+
+  // Assistant Action Buttons
+  if (role === 'assistant' && !options.error && text.trim()) {
+    const actions = document.createElement('div');
+    actions.className = 'message-actions';
+
+    // Copy message
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'action-btn';
+    copyBtn.title = 'Copy message';
+    copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span>';
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(text);
+      showToast('Message copied!');
+    });
+
+    // Read Aloud (Text-to-Speech)
+    const ttsBtn = document.createElement('button');
+    ttsBtn.className = 'action-btn';
+    ttsBtn.title = 'Read aloud';
+    ttsBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg><span>Listen</span>';
+    ttsBtn.addEventListener('click', () => toggleTextToSpeech(text, ttsBtn));
+
+    // Regenerate
+    const regenBtn = document.createElement('button');
+    regenBtn.className = 'action-btn';
+    regenBtn.title = 'Regenerate response';
+    regenBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg><span>Regenerate</span>';
+    regenBtn.addEventListener('click', () => {
+      if (busy) return showToast('Please wait for current turn to complete.');
+      regenerateFromIndex(options.index);
+    });
+
+    // Thumbs up / down
+    const likeBtn = document.createElement('button');
+    likeBtn.className = 'action-btn';
+    likeBtn.title = 'Good response';
+    likeBtn.innerHTML = '👍';
+    likeBtn.addEventListener('click', () => {
+      likeBtn.classList.toggle('active-like');
+      showToast('Thank you for your feedback!');
+    });
+
+    actions.append(copyBtn, ttsBtn, regenBtn, likeBtn);
+
+    // Performance Stats badge
+    if (options.stats) {
+      const statsBadge = document.createElement('span');
+      statsBadge.className = 'msg-perf-badge';
+      statsBadge.textContent = `${options.stats.latencyMs || 0}ms • ~${options.stats.tokenEstimate || 0} tokens`;
+      actions.appendChild(statsBadge);
+    }
+
+    bodyWrap.appendChild(actions);
+  }
+
+  row.append(avatar, bodyWrap);
+  container.appendChild(row);
+
+  return { row, content, bodyWrap };
+}
+
+function scrollChatToBottom(force = false) {
+  const scroller = $('#chatScroll');
+  if (!scroller) return;
+  const isNearBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 180;
+  if (force || isNearBottom) {
+    scroller.scrollTop = scroller.scrollHeight;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// TEXT TO SPEECH (VOICE PLAYBACK)
+// -----------------------------------------------------------------------------
+function toggleTextToSpeech(text, btn) {
+  if (!('speechSynthesis' in window)) {
+    return showToast('Text-to-speech is not supported by your browser.');
+  }
+
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg><span>Listen</span>';
+    return;
+  }
+
+  const cleanText = text.replace(/[*_#`>-]/g, '').slice(0, 800);
+  speechUtterance = new SpeechSynthesisUtterance(cleanText);
+  speechUtterance.rate = 1.0;
+  speechUtterance.pitch = 1.0;
+
+  speechUtterance.onstart = () => {
+    btn.innerHTML = '<span style="color:var(--primary)">■ Stop</span>';
+  };
+
+  speechUtterance.onend = () => {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg><span>Listen</span>';
+  };
+
+  speechUtterance.onerror = () => {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg><span>Listen</span>';
+  };
+
+  window.speechSynthesis.speak(speechUtterance);
+}
+
+// -----------------------------------------------------------------------------
+// VOICE DICTATION (SPEECH TO TEXT)
+// -----------------------------------------------------------------------------
+function setupVoiceRecognition() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const voiceBtn = $('#voiceBtn');
+
+  if (!SpeechRec) {
+    voiceBtn.title = 'Speech-to-text not supported in this browser';
+    voiceBtn.style.opacity = '0.5';
+    return;
+  }
+
+  recognition = new SpeechRec();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onstart = () => {
+    isRecording = true;
+    voiceBtn.classList.add('recording');
+    showToast('Listening... Speak into your microphone');
+  };
+
+  recognition.onresult = (event) => {
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcript += event.results[i][0].transcript;
+    }
+    const input = $('#promptInput');
+    input.value = (input.value ? input.value + ' ' : '') + transcript;
+    autoResizeTextarea(input);
+  };
+
+  recognition.onend = () => {
+    isRecording = false;
+    voiceBtn.classList.remove('recording');
+  };
+
+  recognition.onerror = (e) => {
+    isRecording = false;
+    voiceBtn.classList.remove('recording');
+    showToast(`Microphone error: ${e.error || 'Failed'}`);
+  };
+
+  voiceBtn.addEventListener('click', () => {
+    if (isRecording) {
+      recognition.stop();
+    } else {
+      recognition.start();
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// MULTIMODAL FILE & IMAGE ATTACHMENTS
+// -----------------------------------------------------------------------------
+const fileInput = $('#fileInput');
+const attachBtn = $('#attachBtn');
+const attachmentsPreview = $('#attachmentsPreview');
+
+attachBtn.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', (e) => {
+  handleSelectedFiles(Array.from(e.target.files));
+  fileInput.value = '';
+});
+
+function handleSelectedFiles(files) {
+  if (!files || !files.length) return;
+
+  files.forEach((file) => {
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        attachedImages.push({
+          name: file.name,
+          mimeType: file.type,
+          data: ev.target.result,
+        });
+        renderAttachmentsPreview();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // Text or code file
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const input = $('#promptInput');
+        const appendText = `\n\n\`\`\`${file.name}\n${ev.target.result}\n\`\`\`\n`;
+        input.value = (input.value ? input.value + appendText : appendText);
+        autoResizeTextarea(input);
+        showToast(`Attached ${file.name} to message.`);
+      };
+      reader.readAsText(file);
+    }
+  });
+}
+
+function renderAttachmentsPreview() {
+  attachmentsPreview.replaceChildren();
+  if (attachedImages.length === 0) {
+    attachmentsPreview.hidden = true;
+    return;
+  }
+
+  attachmentsPreview.hidden = false;
+  attachedImages.forEach((img, idx) => {
+    const chip = document.createElement('div');
+    chip.className = 'attachment-chip';
+
+    const thumb = document.createElement('img');
+    thumb.src = img.data;
+
+    const name = document.createElement('span');
+    name.textContent = img.name.length > 12 ? img.name.slice(0, 10) + '…' : img.name;
+
+    const del = document.createElement('span');
+    del.className = 'attachment-chip-del';
+    del.innerHTML = '&times;';
+    del.addEventListener('click', () => {
+      attachedImages.splice(idx, 1);
+      renderAttachmentsPreview();
+    });
+
+    chip.append(thumb, name, del);
+    attachmentsPreview.appendChild(chip);
+  });
+}
+
+// Drag & drop into chat area
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+    handleSelectedFiles(Array.from(e.dataTransfer.files));
+  }
+});
+
+// Clipboard paste images
+window.addEventListener('paste', (e) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type.startsWith('image/')) {
+      const file = items[i].getAsFile();
+      if (file) handleSelectedFiles([file]);
+    }
+  }
+});
+
+// -----------------------------------------------------------------------------
+// CHAT ENGINE: REAL-TIME SSE STREAMING
+// -----------------------------------------------------------------------------
+async function sendMessage(text) {
+  text = String(text || '').trim();
+  if (!text || busy) return;
+
+  busy = true;
+  $('#sendBtn').hidden = true;
+  $('#stopBtn').hidden = false;
+  $('#promptInput').disabled = true;
+  $('#chatEmpty').hidden = true;
+
+  const currentAttached = [...attachedImages];
+  attachedImages = [];
+  renderAttachmentsPreview();
+
+  // Push user message to history
+  history.push({
+    role: 'user',
+    text,
+    images: currentAttached.length ? currentAttached : undefined,
+  });
+  saveConversations();
+
+  // Render user message
+  appendMessageElement('user', text, { images: currentAttached });
+  scrollChatToBottom(true);
+
+  // Create assistant placeholder row for live streaming
+  const { content, row, bodyWrap } = appendMessageElement('assistant', '', {});
+  const cursor = document.createElement('span');
+  cursor.className = 'streaming-cursor';
+  content.appendChild(cursor);
+  scrollChatToBottom(true);
+
+  // Setup AbortController
+  abortController = new AbortController();
+
+  // Model & System Instruction Config
+  const selectedModel = $('#model-select').value;
+  const prefs = getPrefs();
+  const storedKeys = getStoredApiKeys();
+
+  const systemInstruction = prefs.customSystemPrompt || PERSONAS[activePersona] || PERSONAS.general;
+  const temperature = parseFloat(prefs.temperature ?? 0.7);
+
+  const payload = {
+    messages: history.map((h) => ({ role: h.role, text: h.text })),
+    model: selectedModel,
+    stream: true,
+    temperature,
+    systemInstruction,
+    images: currentAttached,
+  };
+
+  const headers = {
+    'Content-Type': 'application/json',
+    Accept: 'text/event-stream',
+  };
+
+  if (storedKeys.geminiKey) headers['x-gemini-key'] = storedKeys.geminiKey;
+  if (storedKeys.groqKey) headers['x-groq-key'] = storedKeys.groqKey;
+
+  const startTime = Date.now();
+  let accumulatedText = '';
+  let streamStats = null;
+
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: abortController.signal,
+    });
+
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({}));
+      throw new Error(errJson.error || `Server responded with status ${response.status}`);
+    }
+
+    // Read SSE Stream
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // keep last incomplete line
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data:')) continue;
+
+        const dataStr = trimmed.replace(/^data:\s*/, '');
+        if (dataStr === '[DONE]') break;
+
+        try {
+          const parsed = JSON.parse(dataStr);
+          if (parsed.error) {
+            throw new Error(parsed.error);
+          }
+          if (parsed.text) {
+            accumulatedText += parsed.text;
+            content.innerHTML = renderMarkdownContent(accumulatedText);
+            content.appendChild(cursor);
+            scrollChatToBottom(false);
+          }
+          if (parsed.stats) {
+            streamStats = parsed.stats;
+          }
+        } catch {
+          // Non-JSON or chunk parsing edge case
+        }
+      }
+    }
+
+    // Stream finished successfully
+    cursor.remove();
+    content.innerHTML = renderMarkdownContent(accumulatedText);
+    enrichMessageElement(content, accumulatedText);
+
+    const latency = Date.now() - startTime;
+    const tokenEst = Math.round(accumulatedText.length / 4);
+    const statsObj = streamStats || { latencyMs: latency, tokenEstimate: tokenEst };
+
+    // Update speed badge in subheader
+    $('#speedValue').textContent = `${latency}ms • ~${Math.round(tokenEst / (latency / 1000) || 1)} t/s`;
+
+    // Save assistant message to history
+    history.push({
+      role: 'assistant',
+      text: accumulatedText,
+      stats: statsObj,
+    });
+    saveConversations();
+
+    // Re-render message row to add action buttons cleanly
+    row.remove();
+    appendMessageElement('assistant', accumulatedText, {
+      stats: statsObj,
+      index: history.length - 1,
+    });
+
+    playChime('success');
+  } catch (err) {
+    cursor.remove();
+    if (err.name === 'AbortError') {
+      content.innerHTML = renderMarkdownContent(accumulatedText + '\n\n*(Generation stopped by user)*');
+      enrichMessageElement(content, accumulatedText);
+      history.push({
+        role: 'assistant',
+        text: accumulatedText || '(Stopped by user)',
+      });
+      saveConversations();
+      showToast('Generation cancelled.');
+    } else {
+      content.classList.add('error');
+      content.textContent = `Error: ${err.message || 'Something went wrong.'}`;
+      playChime('error');
+    }
+  } finally {
+    busy = false;
+    abortController = null;
+    $('#sendBtn').hidden = false;
+    $('#stopBtn').hidden = true;
+    $('#promptInput').disabled = false;
+    $('#promptInput').focus();
+    scrollChatToBottom(true);
+  }
+}
+
+// Stop Button Handler
+$('#stopBtn').addEventListener('click', () => {
+  if (abortController) {
+    abortController.abort();
+  }
+});
+
+// Regenerate from index
+function regenerateFromIndex(msgIndex) {
+  if (msgIndex === undefined || msgIndex < 1) {
+    msgIndex = history.length - 1;
+  }
+  const lastUserIdx = msgIndex - 1;
+  if (lastUserIdx >= 0 && history[lastUserIdx].role === 'user') {
+    const userPrompt = history[lastUserIdx].text;
+    history = history.slice(0, lastUserIdx);
+    saveConversations();
+    renderChatMessages();
+    sendMessage(userPrompt);
+  }
+}
+
+// Auto-resizing textarea & char counter
+const promptInput = $('#promptInput');
+function autoResizeTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+  $('#charCounter').textContent = `${el.value.length} chars`;
+}
+
+promptInput.addEventListener('input', () => autoResizeTextarea(promptInput));
+
+promptInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    const val = promptInput.value.trim();
+    if (val) {
+      promptInput.value = '';
+      autoResizeTextarea(promptInput);
+      sendMessage(val);
+    }
+  }
+});
+
+$('#chatForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const val = promptInput.value.trim();
+  if (val) {
+    promptInput.value = '';
+    autoResizeTextarea(promptInput);
+    sendMessage(val);
+  }
+});
+
+// Prompt Chips Click Handlers
+$$('.chip[data-prompt]').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    const prompt = chip.dataset.prompt;
+    if (chip.closest('.panel[data-panel="compare"]')) {
+      $('#compareInput').value = prompt;
+    } else {
+      promptInput.value = prompt;
+      autoResizeTextarea(promptInput);
+      promptInput.focus();
+    }
+  });
+});
+
+// -----------------------------------------------------------------------------
+// COMPARE TAB (MODEL ARENA)
+// -----------------------------------------------------------------------------
+$('#compareBtn').addEventListener('click', async () => {
+  const prompt = $('#compareInput').value.trim();
+  if (!prompt) return showToast('Please enter or select a prompt.');
+
+  const modelA = $('#compareModelA').value;
+  const modelB = $('#compareModelB').value;
+
+  const resultsWrap = $('#compareResults');
+  resultsWrap.innerHTML = `
+    <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+      <div class="streaming-cursor" style="width: 10px; height: 10px; border-radius: 50%;"></div>
+      <p style="margin-top: 12px; font-weight: 500;">Benchmarking models in parallel...</p>
+    </div>
+  `;
+
+  const storedKeys = getStoredApiKeys();
+  const headers = { 'Content-Type': 'application/json' };
+  if (storedKeys.geminiKey) headers['x-gemini-key'] = storedKeys.geminiKey;
+  if (storedKeys.groqKey) headers['x-groq-key'] = storedKeys.groqKey;
+
+  try {
+    const res = await fetch('/api/compare', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ prompt, modelA, modelB }),
+    });
+
+    const data = await res.json();
     if (data.error) throw new Error(data.error);
-    wrap.replaceChildren();
-    data.results.forEach((res, i) => {
+
+    resultsWrap.replaceChildren();
+    const grid = document.createElement('div');
+    grid.className = 'compare-cards-grid';
+
+    data.results.forEach((r, idx) => {
       const card = document.createElement('div');
       card.className = 'style-card';
       card.innerHTML = `
         <div class="style-card-head">
-          <div><div class="style-card-label">${res.label}</div><div class="style-card-name">${res.name}</div></div>
-          <span class="badge ${res.badge === 'Optimal' ? 'best' : ''}">${res.badge}</span>
+          <div>
+            <div class="style-card-label">${r.label || 'MODEL'}</div>
+            <div class="style-card-name">${r.name || r.model}</div>
+          </div>
+          <span class="badge ${r.badge === 'Optimal' ? 'best' : ''}">${r.badge}</span>
         </div>
-        <div class="style-score"><strong>${res.score}</strong><span>illustrative score / 100</span></div>
-        <div class="style-bar"><div class="style-bar-fill" style="width:${res.score}%"></div></div>
-        <div class="style-body">${escapeHtml(res.body)}</div>
-        <div class="style-foot">${res.notes.map((n) => `<div class="style-foot-item"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="9 12 11 14 15 10"/></svg><span>${escapeHtml(n)}</span></div>`).join('')}</div>
+        <div class="style-metrics">
+          <div class="metric-item">
+            <span class="metric-val">${r.latencyMs}ms</span>
+            <span class="metric-lbl">Response Time</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-val">~${r.tokenCount}</span>
+            <span class="metric-lbl">Est. Tokens</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-val">${r.score}/100</span>
+            <span class="metric-lbl">Clarity Score</span>
+          </div>
+        </div>
+        <div class="style-bar">
+          <div class="style-bar-fill" style="width: ${r.score}%"></div>
+        </div>
+        <div class="style-body">${renderMarkdownContent(r.body)}</div>
+        <button class="vote-winner-btn" data-model="${r.name}">
+          🏆 Pick as Winner
+        </button>
       `;
-      wrap.appendChild(card);
+
+      card.querySelector('.vote-winner-btn').addEventListener('click', (ev) => {
+        ev.target.textContent = '🎉 Winner Selected!';
+        ev.target.style.background = 'var(--primary)';
+        ev.target.style.color = '#fff';
+        playChime('success');
+        showToast(`You selected ${r.name} as the arena winner!`);
+      });
+
+      grid.appendChild(card);
     });
-    showToast('Comparison complete.');
-  } catch (e) {
-    wrap.innerHTML = `<div class="banner banner-amber"><span class="banner-icon">!</span><span>Error: ${e.message}</span></div>`;
-    showToast('Comparison failed.');
+
+    resultsWrap.appendChild(grid);
+    playChime('success');
+  } catch (err) {
+    resultsWrap.innerHTML = `
+      <div class="banner banner-error">
+        <span class="banner-icon">!</span>
+        <span>Comparison failed: ${err.message}</span>
+      </div>
+    `;
+    playChime('error');
   }
 });
 
-/* ---------- STUDIO ---------- */
-$$('.file-item').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const file = btn.dataset.file;
-    $$('.file-item').forEach((b) => b.classList.toggle('active', b === btn));
-    $('#editorFile').textContent = file;
-    
-    // Replaced SAMPLE_FILES with inline strings for simplicity in this snippet
-    const files = {
-      'main.py': `# ChatFlow Python Workspace\ndef fibonacci(n):\n    a, b = 0, 1\n    result = []\n    for _ in range(n):\n        result.append(a)\n        a, b = b, a + b\n    return result\n\nprint(fibonacci(10))`,
-      'index.html': `<!doctype html>\n<html>\n  <head><title>Demo</title></head>\n  <body>\n    <h1>Hello from ChatFlow Studio</h1>\n  </body>\n</html>`,
-      'styles.css': `body {\n  font-family: system-ui, sans-serif;\n  background: #fafafa;\n  color: #18181b;\n}`
-    };
-    
-    $('#editorCode').textContent = files[file] || '';
-    $('#outputBody').innerHTML = `<div class="banner banner-neutral"><span class="banner-icon">i</span><span><strong>READY</strong><br/>Select "Run Code".</span></div>`;
+// -----------------------------------------------------------------------------
+// STUDIO TAB (CODE PLAYGROUND & SANDBOX)
+// -----------------------------------------------------------------------------
+function renderStudio() {
+  const textarea = $('#editorTextarea');
+  const gutter = $('#editorGutter');
+  const fileLabel = $('#editorFile');
+  const badge = $('#editorLangBadge');
+
+  fileLabel.textContent = activeStudioFile;
+
+  if (activeStudioFile.endsWith('.py')) {
+    badge.textContent = 'Python 3.14';
+  } else if (activeStudioFile.endsWith('.html')) {
+    badge.textContent = 'HTML5';
+  } else if (activeStudioFile.endsWith('.css')) {
+    badge.textContent = 'CSS3';
+  } else {
+    badge.textContent = 'JavaScript (Node)';
+  }
+
+  textarea.value = studioFiles[activeStudioFile] || '';
+  updateEditorGutter();
+
+  // If HTML or CSS, update live preview automatically
+  if (activeStudioFile.endsWith('.html') || activeStudioFile.endsWith('.css')) {
+    updateLiveWebPreview();
+  }
+}
+
+function updateEditorGutter() {
+  const textarea = $('#editorTextarea');
+  const gutter = $('#editorGutter');
+  const lines = textarea.value.split('\n').length;
+  gutter.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br/>');
+}
+
+// Handle Tab key in editor (inserts 4 spaces instead of losing focus)
+$('#editorTextarea').addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const textarea = e.target;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    textarea.value = textarea.value.substring(0, start) + '    ' + textarea.value.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + 4;
+    updateEditorGutter();
+  } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    $('#runBtn').click();
+  }
+});
+
+$('#editorTextarea').addEventListener('input', () => {
+  studioFiles[activeStudioFile] = $('#editorTextarea').value;
+  updateEditorGutter();
+  if (activeStudioFile.endsWith('.html') || activeStudioFile.endsWith('.css')) {
+    updateLiveWebPreview();
+  }
+});
+
+// File tabs switching in Studio
+$$('.file-item').forEach((item) => {
+  item.addEventListener('click', () => {
+    $$('.file-item').forEach((i) => i.classList.remove('active'));
+    item.classList.add('active');
+    activeStudioFile = item.dataset.file;
+    renderStudio();
   });
 });
+
+// Output pane tabs (Console vs Live Preview)
+$$('.output-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    $$('.output-tab').forEach((t) => t.classList.remove('active'));
+    $$('.output-pane').forEach((p) => p.classList.remove('active'));
+    tab.classList.add('active');
+
+    const target = tab.dataset.out;
+    if (target === 'console') {
+      $('#paneConsole').classList.add('active');
+    } else {
+      $('#panePreview').classList.add('active');
+      updateLiveWebPreview();
+    }
+  });
+});
+
+function updateLiveWebPreview() {
+  const iframe = $('#previewFrame');
+  const html = studioFiles['index.html'] || '';
+  const css = studioFiles['styles.css'] || '';
+  const js = studioFiles['script.js'] || '';
+
+  const combined = `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>${css}</style>
+      </head>
+      <body>
+        ${html}
+        <script>${js}<\/script>
+      </body>
+    </html>
+  `;
+
+  iframe.srcdoc = combined;
+}
+
+// Clear console
+$('#clearConsoleBtn').addEventListener('click', () => {
+  $('#outputBody').innerHTML = `
+    <div class="banner banner-neutral">
+      <span class="banner-icon">i</span>
+      <span>Console cleared. Press "Run Code" to execute.</span>
+    </div>
+  `;
+});
+
+// Run Code in Sandbox
 $('#runBtn').addEventListener('click', async () => {
-  const file = $('#editorFile').textContent;
-  const code = $('#editorCode').textContent;
-  $('#outputBody').innerHTML = `<div class="banner banner-neutral"><span class="banner-icon">i</span><span>Executing...</span></div>`;
+  const code = $('#editorTextarea').value;
+  const lang = activeStudioFile.split('.').pop();
+  const outputBody = $('#outputBody');
+
+  // Switch to console view
+  $('.output-tab[data-out="console"]').click();
+
+  outputBody.innerHTML = `
+    <div class="banner banner-neutral">
+      <span class="banner-icon">i</span>
+      <span>Executing in safe sandbox...</span>
+    </div>
+  `;
+
   try {
-    const r = await fetch('/api/run-code', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, language: file.split('.').pop() })
+    const res = await fetch('/api/run-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, language: lang }),
     });
-    const data = await r.json();
-    $('#outputBody').innerHTML = `
-      <div class="banner banner-neutral" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534">
-        <span class="banner-icon" style="background:#22c55e;color:#fff">✓</span>
-        <span><strong>LIVE OUTPUT · ${file}</strong><br/>
-        <pre style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:12px;white-space:pre-wrap;">${escapeHtml(data.output)}</pre>
-        </span>
-      </div>`;
-  } catch (e) {
-    $('#outputBody').innerHTML = `<div class="banner banner-amber"><span class="banner-icon">!</span><span>Execution Error: ${e.message}</span></div>`;
+
+    const data = await res.json();
+
+    if (data.previewReady) {
+      $('.output-tab[data-out="preview"]').click();
+      showToast('Live Web Preview rendered!');
+      return;
+    }
+
+    const isSuccess = data.success !== false;
+    outputBody.innerHTML = `
+      <div class="banner ${isSuccess ? 'banner-success' : 'banner-error'}">
+        <span class="banner-icon">${isSuccess ? '✓' : '!'}</span>
+        <div style="flex: 1;">
+          <strong>${isSuccess ? 'SUCCESS' : 'EXECUTION ERROR'} · ${activeStudioFile} (${data.durationMs}ms)</strong>
+          <pre style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; white-space: pre-wrap;">${data.output || '(No output)'}</pre>
+        </div>
+      </div>
+    `;
+
+    playChime(isSuccess ? 'success' : 'error');
+  } catch (err) {
+    outputBody.innerHTML = `
+      <div class="banner banner-error">
+        <span class="banner-icon">!</span>
+        <span>Execution request failed: ${err.message}</span>
+      </div>
+    `;
+    playChime('error');
   }
 });
 
-/* ---------- settings ---------- */
-const prefs = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
-if (prefs.model) $('#settingsModel').value = prefs.model;
-if (prefs.compact) { $('#compactMode').checked = true; document.body.classList.add('compact'); }
-$('#confirmPrefs').addEventListener('click', () => {
-  const model = $('#settingsModel').value;
-  const compact = $('#compactMode').checked;
-  localStorage.setItem(PREF_KEY, JSON.stringify({ model, compact }));
-  document.body.classList.toggle('compact', compact);
-  showToast('Preferences saved.');
+// Explain with AI button
+$('#aiExplainCodeBtn').addEventListener('click', () => {
+  const code = $('#editorTextarea').value;
+  const prompt = `Please explain the following ${activeStudioFile} code line-by-line and outline any potential optimizations:\n\n\`\`\`${activeStudioFile}\n${code}\n\`\`\``;
+  switchTab('chat');
+  promptInput.value = prompt;
+  autoResizeTextarea(promptInput);
+  sendMessage(prompt);
 });
 
-/* ---------- boot ---------- */
-try {
-  const saved = JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || 'null');
-  if (Array.isArray(saved)) conversations = saved.filter((c) => c && typeof c.id === 'string' && Array.isArray(c.messages));
-} catch { conversations = []; }
+// Fix with AI button
+$('#aiFixCodeBtn').addEventListener('click', () => {
+  const code = $('#editorTextarea').value;
+  const prompt = `Please review, debug, and optimize this ${activeStudioFile} code. Point out any edge cases, security issues, or performance bugs, and provide the corrected version:\n\n\`\`\`${activeStudioFile}\n${code}\n\`\`\``;
+  switchTab('chat');
+  promptInput.value = prompt;
+  autoResizeTextarea(promptInput);
+  sendMessage(prompt);
+});
 
-if (!conversations.length) {
-  const oldMessages = loadHistory();
-  conversations = [{
-    id: (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`),
-    title: oldMessages.find((m) => m.role === 'user')?.text?.trim().slice(0, 34) || 'New conversation',
-    messages: oldMessages, createdAt: Date.now(), updatedAt: Date.now()
-  }];
+// -----------------------------------------------------------------------------
+// SETTINGS PANEL & API KEY VERIFICATION
+// -----------------------------------------------------------------------------
+function loadSettingsUI() {
+  const prefs = getPrefs();
+  const keys = getStoredApiKeys();
+
+  if (keys.geminiKey) $('#customGeminiKey').value = keys.geminiKey;
+  if (keys.groqKey) $('#customGroqKey').value = keys.groqKey;
+
+  if (prefs.defaultModel) $('#settingsModel').value = prefs.defaultModel;
+  if (prefs.temperature !== undefined) {
+    $('#temperatureSlider').value = prefs.temperature;
+    $('#tempDisplay').textContent = prefs.temperature;
+  }
+  if (prefs.customSystemPrompt) $('#customSystemPrompt').value = prefs.customSystemPrompt;
+  if (prefs.theme) $('#themeSelect').value = prefs.theme;
+  if (prefs.compact) {
+    $('#compactMode').checked = true;
+    document.body.classList.add('compact');
+  }
+  if (prefs.soundEffects !== undefined) {
+    $('#soundEffects').checked = prefs.soundEffects;
+  }
 }
-const lastActiveId = (() => { try { return localStorage.getItem('chatflow-active-conversation-v1'); } catch { return null; } })();
-activeConversationId = conversations.some((c) => c.id === lastActiveId) ? lastActiveId : conversations[0].id;
-history = (conversations.find((c) => c.id === activeConversationId)?.messages || []).slice();
-renderConversation();
-renderRecentChats();
-input.focus();
+
+// Temperature slider live feedback
+$('#temperatureSlider').addEventListener('input', (e) => {
+  $('#tempDisplay').textContent = e.target.value;
+});
+
+// Reveal password toggle
+$$('.btn-reveal').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const target = $(`#${btn.dataset.target}`);
+    if (target.type === 'password') {
+      target.type = 'text';
+      btn.textContent = '🔒';
+    } else {
+      target.type = 'password';
+      btn.textContent = '👁️';
+    }
+  });
+});
+
+// Test Gemini Key
+$('#testGeminiKeyBtn').addEventListener('click', async () => {
+  const key = $('#customGeminiKey').value.trim();
+  const status = $('#geminiKeyStatus');
+  if (!key) return showToast('Please enter a Gemini API key first.');
+
+  status.className = 'key-status-msg';
+  status.textContent = 'Testing key connectivity...';
+
+  try {
+    const res = await fetch('/api/verify-keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ geminiKey: key }),
+    });
+    const data = await res.json();
+    if (data.gemini.valid) {
+      status.className = 'key-status-msg ok';
+      status.textContent = '✓ ' + data.gemini.message;
+      playChime('success');
+    } else {
+      status.className = 'key-status-msg error';
+      status.textContent = '✗ ' + data.gemini.message;
+      playChime('error');
+    }
+  } catch (err) {
+    status.className = 'key-status-msg error';
+    status.textContent = 'Error: ' + err.message;
+  }
+});
+
+// Test Groq Key
+$('#testGroqKeyBtn').addEventListener('click', async () => {
+  const key = $('#customGroqKey').value.trim();
+  const status = $('#groqKeyStatus');
+  if (!key) return showToast('Please enter a Groq API key first.');
+
+  status.className = 'key-status-msg';
+  status.textContent = 'Testing key connectivity...';
+
+  try {
+    const res = await fetch('/api/verify-keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groqKey: key }),
+    });
+    const data = await res.json();
+    if (data.groq.valid) {
+      status.className = 'key-status-msg ok';
+      status.textContent = '✓ ' + data.groq.message;
+      playChime('success');
+    } else {
+      status.className = 'key-status-msg error';
+      status.textContent = '✗ ' + data.groq.message;
+      playChime('error');
+    }
+  } catch (err) {
+    status.className = 'key-status-msg error';
+    status.textContent = 'Error: ' + err.message;
+  }
+});
+
+// Save Keys
+$('#saveKeysBtn').addEventListener('click', () => {
+  const geminiKey = $('#customGeminiKey').value.trim();
+  const groqKey = $('#customGroqKey').value.trim();
+  saveStoredApiKeys({ geminiKey, groqKey });
+  checkBackendHealth();
+  showToast('API keys saved locally in your browser!');
+});
+
+// Remove Keys
+$('#clearKeysBtn').addEventListener('click', () => {
+  $('#customGeminiKey').value = '';
+  $('#customGroqKey').value = '';
+  saveStoredApiKeys({});
+  checkBackendHealth();
+  showToast('Custom API keys removed from browser.');
+});
+
+// Save Preferences
+$('#confirmPrefs').addEventListener('click', () => {
+  const defaultModel = $('#settingsModel').value;
+  const temperature = parseFloat($('#temperatureSlider').value);
+  const customSystemPrompt = $('#customSystemPrompt').value.trim();
+  const theme = $('#themeSelect').value;
+  const compact = $('#compactMode').checked;
+  const soundEffects = $('#soundEffects').checked;
+
+  savePrefs({ defaultModel, temperature, customSystemPrompt, theme, compact, soundEffects });
+
+  applyTheme(theme);
+  document.body.classList.toggle('compact', compact);
+  $('#model-select').value = defaultModel;
+
+  showToast('Workspace preferences saved!');
+});
+
+// -----------------------------------------------------------------------------
+// COMMAND PALETTE (CMD+K)
+// -----------------------------------------------------------------------------
+const cmdPaletteModal = $('#cmdPaletteModal');
+const paletteInput = $('#paletteInput');
+const paletteResults = $('#paletteResults');
+
+const PALETTE_COMMANDS = [
+  { label: 'Start New Conversation', icon: '💬', kbd: '⌘N', action: () => { switchTab('chat'); createConversation(); } },
+  { label: 'Switch to Gemini 2.5 Flash', icon: '🌟', kbd: '', action: () => { $('#model-select').value = 'gemini-2.5-flash'; showToast('Model set to Gemini 2.5 Flash'); } },
+  { label: 'Switch to Gemini 2.5 Pro', icon: '🧠', kbd: '', action: () => { $('#model-select').value = 'gemini-2.5-pro'; showToast('Model set to Gemini 2.5 Pro'); } },
+  { label: 'Switch to Groq Llama 3.3', icon: '⚡', kbd: '', action: () => { $('#model-select').value = 'groq-llama-3.3-70b'; showToast('Model set to Groq Llama 3.3'); } },
+  { label: 'Open Model Arena (Compare)', icon: '⚖️', kbd: 'Ctrl+2', action: () => switchTab('compare') },
+  { label: 'Open Code Studio Playground', icon: '💻', kbd: 'Ctrl+3', action: () => switchTab('studio') },
+  { label: 'Open Preferences & Settings', icon: '⚙️', kbd: 'Ctrl+4', action: () => switchTab('settings') },
+  { label: 'Toggle Dark / Light Theme', icon: '🌓', kbd: '', action: () => $('#themeToggleBtn').click() },
+  { label: 'Export Current Conversation', icon: '📥', kbd: '', action: () => $('#exportChatsBtn').click() },
+  { label: 'Clear All Saved Conversations', icon: '🗑️', kbd: '', action: () => $('#clearAllChatsBtn').click() },
+  { label: 'View Keyboard Shortcuts', icon: '⌨️', kbd: '?', action: () => openShortcutsModal() },
+];
+
+function openCommandPalette() {
+  cmdPaletteModal.hidden = false;
+  paletteInput.value = '';
+  renderPaletteResults();
+  paletteInput.focus();
+}
+
+function closeCommandPalette() {
+  cmdPaletteModal.hidden = true;
+}
+
+function renderPaletteResults(query = '') {
+  paletteResults.replaceChildren();
+  const q = query.toLowerCase().trim();
+  const filtered = PALETTE_COMMANDS.filter((cmd) => !q || cmd.label.toLowerCase().includes(q));
+
+  if (!filtered.length) {
+    const empty = document.createElement('div');
+    empty.style.padding = '12px';
+    empty.style.color = 'var(--text-muted)';
+    empty.textContent = 'No matching commands.';
+    paletteResults.appendChild(empty);
+    return;
+  }
+
+  filtered.forEach((cmd, idx) => {
+    const item = document.createElement('div');
+    item.className = `palette-item ${idx === 0 ? 'active' : ''}`;
+    item.innerHTML = `
+      <span>${cmd.icon}</span>
+      <span>${cmd.label}</span>
+      ${cmd.kbd ? `<kbd>${cmd.kbd}</kbd>` : ''}
+    `;
+    item.addEventListener('click', () => {
+      closeCommandPalette();
+      cmd.action();
+    });
+    paletteResults.appendChild(item);
+  });
+}
+
+paletteInput.addEventListener('input', (e) => renderPaletteResults(e.target.value));
+
+paletteInput.addEventListener('keydown', (e) => {
+  const items = $$('.palette-item');
+  let activeIdx = Array.from(items).findIndex((it) => it.classList.contains('active'));
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (activeIdx < items.length - 1) {
+      items[activeIdx]?.classList.remove('active');
+      items[activeIdx + 1]?.classList.add('active');
+      items[activeIdx + 1]?.scrollIntoView({ block: 'nearest' });
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (activeIdx > 0) {
+      items[activeIdx]?.classList.remove('active');
+      items[activeIdx - 1]?.classList.add('active');
+      items[activeIdx - 1]?.scrollIntoView({ block: 'nearest' });
+    }
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    items[activeIdx]?.click();
+  } else if (e.key === 'Escape') {
+    closeCommandPalette();
+  }
+});
+
+$('#cmdPaletteBtn').addEventListener('click', openCommandPalette);
+cmdPaletteModal.addEventListener('click', (e) => {
+  if (e.target === cmdPaletteModal) closeCommandPalette();
+});
+
+// -----------------------------------------------------------------------------
+// SHORTCUTS MODAL
+// -----------------------------------------------------------------------------
+const shortcutsModal = $('#shortcutsModal');
+function openShortcutsModal() { shortcutsModal.hidden = false; }
+function closeShortcutsModal() { shortcutsModal.hidden = true; }
+
+$('#shortcutsBtn').addEventListener('click', openShortcutsModal);
+$('#closeShortcutsBtn').addEventListener('click', closeShortcutsModal);
+shortcutsModal.addEventListener('click', (e) => {
+  if (e.target === shortcutsModal) closeShortcutsModal();
+});
+
+// Global Keyboard Shortcuts
+window.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    if (cmdPaletteModal.hidden) openCommandPalette();
+    else closeCommandPalette();
+  } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+    e.preventDefault();
+    createConversation();
+  } else if ((e.metaKey || e.ctrlKey) && e.key === '1') {
+    e.preventDefault();
+    switchTab('chat');
+  } else if ((e.metaKey || e.ctrlKey) && e.key === '2') {
+    e.preventDefault();
+    switchTab('compare');
+  } else if ((e.metaKey || e.ctrlKey) && e.key === '3') {
+    e.preventDefault();
+    switchTab('studio');
+  } else if ((e.metaKey || e.ctrlKey) && e.key === '4') {
+    e.preventDefault();
+    switchTab('settings');
+  } else if (e.key === 'Escape') {
+    closeCommandPalette();
+    closeShortcutsModal();
+    if (busy && abortController) {
+      abortController.abort();
+    }
+  }
+});
+
+// -----------------------------------------------------------------------------
+// APPLICATION BOOTSTRAP
+// -----------------------------------------------------------------------------
+function bootstrap() {
+  const prefs = getPrefs();
+
+  // Apply theme
+  applyTheme(prefs.theme || 'dark');
+
+  // Load Settings
+  loadSettingsUI();
+
+  // Setup Voice Recognition
+  setupVoiceRecognition();
+
+  // Check Backend
+  checkBackendHealth();
+
+  // Load Conversations
+  conversations = loadConversations();
+  if (!conversations.length) {
+    conversations = [{
+      id: (crypto.randomUUID ? crypto.randomUUID() : `cf-${Date.now()}`),
+      title: 'New conversation',
+      messages: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }];
+  }
+
+  const lastActiveId = localStorage.getItem(ACTIVE_CONV_KEY);
+  activeConversationId = conversations.some((c) => c.id === lastActiveId)
+    ? lastActiveId
+    : conversations[0].id;
+
+  history = (conversations.find((c) => c.id === activeConversationId)?.messages || []).slice();
+
+  renderChatMessages();
+  renderRecentList();
+  updateChatTitleDisplay();
+  renderStudio();
+
+  $('#promptInput')?.focus();
+}
+
+// Start application when DOM is ready
+document.addEventListener('DOMContentLoaded', bootstrap);
