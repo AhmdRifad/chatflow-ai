@@ -117,7 +117,7 @@ function resolveGeminiModel(modelId) {
   if (modelId === 'gemini-2.5-pro') return 'gemini-2.5-pro';
   if (modelId === 'gemini-1.5-flash') return 'gemini-1.5-flash';
   if (modelId === 'gemini-2.0-flash') return 'gemini-2.0-flash';
-  return 'gemini-2.5-flash';
+  return 'gemini-3.8-flash';
 }
 
 // Smart simulated response generator when API keys are not yet configured
