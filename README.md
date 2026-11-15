@@ -1,6 +1,6 @@
 # ChatFlow AI v2.0 PRO — Modern AI Workspace
 
-ChatFlow AI is an ultra-fast, responsive AI workspace featuring multi-provider support (**Google Gemini 2.5** and **Groq**), live token streaming (SSE), sandbox code execution (**Python 3.14** and **JavaScript**), a side-by-side **Model Comparison Arena**, multimodal file & image analysis, voice dictation, and built-in text-to-speech.
+ChatFlow AI is an ultra-fast, responsive AI workspace featuring multi-provider support (**Google Gemini 3.8** and **Groq**), live token streaming (SSE), sandbox code execution (**Python 3.14** and **JavaScript**), a side-by-side **Model Comparison Arena**, multimodal file & image analysis, voice dictation, and built-in text-to-speech.
 
 ---
 
@@ -8,8 +8,8 @@ ChatFlow AI is an ultra-fast, responsive AI workspace featuring multi-provider s
 
 - **Real-Time Token Streaming (SSE)**: Instant time-to-first-token with smooth cursor animation, cancellable at any moment with the Stop button.
 - **Multi-Provider Engine**:
-  - 🌟 **Gemini 2.5 Flash**: Lightning-fast reasoning with 1M token context.
-  - 🧠 **Gemini 2.5 Pro**: Deep analysis for advanced coding and math.
+  - 🌟 **Gemini 3.8 Flash**: Lightning-fast reasoning with 1M token context.
+  - 🧠 **Gemini 3 Pro**: Deep analysis for advanced coding and math.
   - ⚡ **Groq Llama 3.3 (70B)**: Blazing fast open-weights inference.
   - 🌪️ **Groq Mixtral (8x7B)**: Mixture-of-Experts architecture.
   - 💡 **Interactive Demo Assistant**: Works out-of-the-box without requiring API keys!
