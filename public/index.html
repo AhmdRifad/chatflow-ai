@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
   <meta name="theme-color" content="#0f0f11" />
-  <meta name="description" content="ChatFlow AI — Modern, ultra-fast AI workspace with Gemini 3.8, Groq, Code Studio, and Model Comparison Arena." />
+ 
+  
   <title>ChatFlow AI — Intelligent AI Workspace</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/styles.css" />
@@ -42,17 +43,7 @@
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span>Chat</span>
         </button>
-        <button class="tab" data-tab="compare" role="tab" title="Compare Models Arena (Ctrl+2)">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          <span>Compare</span>
-          <span class="tab-pill">Arena</span>
-        </button>
-        <button class="tab" data-tab="studio" role="tab" title="Code Playground & Sandbox (Ctrl+3)">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-          <span>Studio</span>
-          <span class="tab-pill green">Run</span>
-        </button>
-        <button class="tab" data-tab="settings" role="tab" title="Settings & API Keys (Ctrl+4)">
+        <button class="tab" data-tab="settings" role="tab" title="Settings & API Keys (Ctrl+2)">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>Settings</span>
         </button>
@@ -104,6 +95,11 @@
       <div class="subheader-right">
         <span class="subheader-label">Model</span>
         <div class="select-wrapper">
+          <span class="model-select-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/>
+            </svg>
+          </span>
           <select id="model-select" class="model-select" title="Select AI Engine">
             <optgroup label="Google AI">
               <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (Fast & Smart)</option>
@@ -178,7 +174,7 @@
                 <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               </div>
               <h1>How can I help you today?</h1>
-              <p>Experience real-time streaming, multimodal image analysis, sandbox code execution, and side-by-side model comparison.</p>
+              <p>Experience real-time streaming, multimodal image analysis, smart personas, and fast AI responses.</p>
 
               <!-- Category prompt grid -->
               <div class="chip-grid">
@@ -192,8 +188,8 @@
                 <button class="chip" data-prompt="Write a Python script to calculate Fibonacci and measure execution time">
                   <span class="chip-icon">🐍</span>
                   <div class="chip-text">
-                    <strong>Python code & sandbox</strong>
-                    <small>Algorithms, data structures & test</small>
+                    <strong>Python algorithms</strong>
+                    <small>Algorithms, data structures & benchmarks</small>
                   </div>
                 </button>
                 <button class="chip" data-prompt="Compare TCP vs UDP protocols with a trade-off table">
@@ -260,171 +256,6 @@
           </div>
         </section>
 
-        <!-- 2. COMPARE PANEL (MODEL ARENA) -->
-        <section class="panel" data-panel="compare">
-          <div class="panel-head">
-            <h2>
-              <span class="head-icon">⚖️</span>
-              <span>Model Comparison Arena</span>
-            </h2>
-            <p>Send a prompt simultaneously to two models to compare generation speed, reasoning depth, and latency in real time.</p>
-          </div>
-
-          <div class="compare-form">
-            <div class="compare-selectors-row">
-              <div class="compare-selector-col">
-                <label>Model A</label>
-                <select id="compareModelA" class="field-select">
-                  <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (Google AI)</option>
-                  <option value="gemini-3-pro">Gemini 3 Pro (Google AI)</option>
-                  <option value="groq-llama-3.3-70b">Groq Llama 3.3 70B</option>
-                  <option value="groq-mixtral">Groq Mixtral 8x7B</option>
-                </select>
-              </div>
-              <div class="compare-vs">VS</div>
-              <div class="compare-selector-col">
-                <label>Model B</label>
-                <select id="compareModelB" class="field-select">
-                  <option value="groq-llama-3.3-70b" selected>Groq Llama 3.3 70B (Groq)</option>
-                  <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
-                  <option value="gemini-3-pro">Gemini 3 Pro</option>
-                  <option value="groq-mixtral">Groq Mixtral 8x7B</option>
-                  <option value="groq-llama3-8b">Groq Llama 3 8B (Instant)</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="compare-label" style="margin-top: 14px;">Select or customize prompt</div>
-            <div class="chip-row">
-              <button class="chip chip-sm" data-prompt="What is the difference between TCP and UDP? Provide a trade-off comparison.">TCP vs UDP</button>
-              <button class="chip chip-sm" data-prompt="Explain how public-key cryptography works using Alice and Bob.">Public Key Crypto</button>
-              <button class="chip chip-sm" data-prompt="Write an efficient Python function to solve the Two Sum problem.">Two Sum Python</button>
-              <button class="chip chip-sm" data-prompt="How do I balance deep learning study with shipping production projects?">Learning vs Shipping</button>
-            </div>
-
-            <div class="compare-input-row">
-              <input class="compare-input" id="compareInput" type="text" placeholder="Type a prompt or choose one above..." />
-              <button class="btn-primary" id="compareBtn">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <span>Run Arena</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="compare-results" id="compareResults">
-            <div class="empty-arena-placeholder">
-              <span class="arena-icon">⚔️</span>
-              <h3>No comparison running</h3>
-              <p>Pick a question above and click <strong>Run Arena</strong> to benchmark both models simultaneously.</p>
-            </div>
-          </div>
-        </section>
-
-        <!-- 3. STUDIO PANEL (CODE PLAYGROUND) -->
-        <section class="panel" data-panel="studio">
-          <div class="panel-head">
-            <h2>
-              <span class="head-icon">&lt;/&gt;</span>
-              <span>Code Studio & Sandbox</span>
-            </h2>
-            <p>Live Python execution with server sandbox and real-time interactive HTML/CSS/JS preview.</p>
-          </div>
-
-          <div class="studio">
-            <!-- Files Sidebar -->
-            <div class="studio-files">
-              <div class="studio-files-label">WORKSPACE FILES</div>
-              <button class="file-item active" data-file="main.py">
-                <span class="file-dot dot-py"></span>
-                <span>main.py</span>
-                <span class="file-tag">Python 3</span>
-              </button>
-              <button class="file-item" data-file="index.html">
-                <span class="file-dot dot-html"></span>
-                <span>index.html</span>
-                <span class="file-tag">HTML</span>
-              </button>
-              <button class="file-item" data-file="styles.css">
-                <span class="file-dot dot-css"></span>
-                <span>styles.css</span>
-                <span class="file-tag">CSS</span>
-              </button>
-              <button class="file-item" data-file="script.js">
-                <span class="file-dot dot-js"></span>
-                <span>script.js</span>
-                <span class="file-tag">JS</span>
-              </button>
-            </div>
-
-            <!-- Code Editor -->
-            <div class="studio-editor">
-              <div class="editor-head">
-                <div class="editor-head-left">
-                  <span class="editor-file" id="editorFile">main.py</span>
-                  <span class="editor-badge" id="editorLangBadge">Python 3.14</span>
-                </div>
-                <div class="editor-head-actions">
-                  <button class="btn-secondary" id="aiExplainCodeBtn" title="Ask AI to explain this code in Chat">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    <span>Explain</span>
-                  </button>
-                  <button class="btn-secondary" id="aiFixCodeBtn" title="Ask AI to debug & optimize this code">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                    <span>Fix with AI</span>
-                  </button>
-                  <button class="btn-run" id="runBtn" title="Execute Code (Ctrl+Enter)">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><polygon points="6 4 20 12 6 20"/></svg>
-                    <span>Run Code</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Real Editable Code Editor with Line Numbers -->
-              <div class="editor-container">
-                <div class="editor-gutter" id="editorGutter">1</div>
-                <textarea class="editor-textarea" id="editorTextarea" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
-              </div>
-            </div>
-          </div>
-
-          <!-- Studio Output Area (Split: Console vs Live Preview) -->
-          <div class="studio-output">
-            <div class="output-tabs">
-              <button class="output-tab active" data-out="console">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                <span>Console Terminal</span>
-              </button>
-              <button class="output-tab" data-out="preview">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                <span>Live Web Preview</span>
-              </button>
-              <div class="output-actions">
-                <button class="out-btn" id="clearConsoleBtn" title="Clear console output">Clear</button>
-              </div>
-            </div>
-
-            <!-- Console Output Pane -->
-            <div class="output-pane active" id="paneConsole">
-              <div class="output-body" id="outputBody">
-                <div class="banner banner-neutral">
-                  <span class="banner-icon">i</span>
-                  <span><strong>SANDBOX READY</strong><br/>Click "Run Code" or press <kbd>Ctrl+Enter</kbd> to execute in a secure sandbox.</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Live Web Preview Pane -->
-            <div class="output-pane" id="panePreview">
-              <iframe id="previewFrame" sandbox="allow-scripts" title="Studio Web Preview"></iframe>
-            </div>
-
-            <div class="output-foot">
-              <span>Environment: Python 3.14 & Node.js 24 • Execution timeout: 5s • Safe sandbox isolation</span>
-            </div>
-          </div>
-        </section>
-
-        <!-- 4. SETTINGS PANEL -->
         <section class="panel" data-panel="settings">
           <div class="panel-head">
             <h2>
@@ -592,11 +423,8 @@
           <div class="shortcut-row"><span class="shortcut-desc">New line in input</span><kbd>Shift + Enter</kbd></div>
           <div class="shortcut-row"><span class="shortcut-desc">Open Command Palette</span><kbd>⌘K / Ctrl+K</kbd></div>
           <div class="shortcut-row"><span class="shortcut-desc">New conversation</span><kbd>⌘N / Ctrl+N</kbd></div>
-          <div class="shortcut-row"><span class="shortcut-desc">Execute code in Studio</span><kbd>⌘↵ / Ctrl+Enter</kbd></div>
           <div class="shortcut-row"><span class="shortcut-desc">Switch to Chat</span><kbd>Ctrl + 1</kbd></div>
-          <div class="shortcut-row"><span class="shortcut-desc">Switch to Compare</span><kbd>Ctrl + 2</kbd></div>
-          <div class="shortcut-row"><span class="shortcut-desc">Switch to Studio</span><kbd>Ctrl + 3</kbd></div>
-          <div class="shortcut-row"><span class="shortcut-desc">Switch to Settings</span><kbd>Ctrl + 4</kbd></div>
+          <div class="shortcut-row"><span class="shortcut-desc">Switch to Settings</span><kbd>Ctrl + 2</kbd></div>
           <div class="shortcut-row"><span class="shortcut-desc">Close any modal</span><kbd>Esc</kbd></div>
         </div>
       </div>

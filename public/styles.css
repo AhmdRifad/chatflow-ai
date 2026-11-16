@@ -416,38 +416,89 @@ kbd {
 .subheader-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .subheader-label {
-  font-size: 11.5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
 }
 
 .select-wrapper {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.model-select-icon {
+  position: absolute;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  pointer-events: none;
+  z-index: 2;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.select-wrapper:hover .model-select-icon {
+  transform: scale(1.12);
+  color: var(--primary-hover);
 }
 
 .model-select {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 5px 24px 5px 10px;
+  padding: 6px 30px 6px 29px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 550;
+  letter-spacing: -0.01em;
   color: var(--text-main);
-  background: var(--bg-card);
+  background-color: var(--bg-card);
   outline: none;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23737385' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
-  background-position: right 6px center;
-  background-size: 14px;
+  background-position: right 9px center;
+  background-size: 13px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.model-select:focus {
+.model-select:hover {
+  border-color: var(--border-strong);
+  background-color: var(--bg-card-hover);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.model-select:focus,
+.model-select:focus-visible {
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft), 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.model-select optgroup {
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  padding: 4px 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.model-select option {
+  font-weight: 500;
+  font-size: 12.5px;
+  color: var(--text-main);
+  background: var(--bg-card);
+  padding: 6px 10px;
 }
 
 .speed-badge {
@@ -1963,17 +2014,33 @@ kbd {
 
 .field-select {
   width: 100%;
-  background: var(--bg-input);
+  background-color: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 8px 10px;
+  padding: 8px 30px 8px 12px;
   font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
   color: var(--text-main);
   outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.field-select:hover {
+  border-color: var(--border-strong);
+  background-color: var(--bg-card-hover);
 }
 
 .field-select:focus {
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .range-slider {
