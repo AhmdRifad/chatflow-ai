@@ -300,8 +300,6 @@ function deleteConversation(id, e) {
   const conv = conversations.find((c) => c.id === id);
   if (!conv) return;
 
-  if (!window.confirm(`Delete "${conv.title || 'Conversation'}"?`)) return;
-
   conversations = conversations.filter((c) => c.id !== id);
 
   if (activeConversationId === id) {
@@ -404,22 +402,23 @@ $('#chatSearchInput').addEventListener('input', (e) => {
   renderRecentList(e.target.value);
 });
 
-// New Chat button
-$('#newChatBtn').addEventListener('click', () => {
-  if (busy) return showToast('Please wait for the current reply to finish.');
-  createConversation();
-});
+// New Chat button (button removed from UI; kept for Ctrl+N shortcut)
+const _newChatBtn = $('#newChatBtn');
+if (_newChatBtn) {
+  _newChatBtn.addEventListener('click', () => {
+    if (busy) return showToast('Please wait for the current reply to finish.');
+    createConversation();
+  });
+}
 
 // Clear all chats
 $('#clearAllChatsBtn').addEventListener('click', () => {
   if (!conversations.length) return showToast('No conversations to clear.');
-  if (window.confirm('Are you sure you want to delete ALL conversations? This cannot be undone.')) {
-    conversations = [];
-    localStorage.removeItem(CONVERSATIONS_KEY);
-    localStorage.removeItem(ACTIVE_CONV_KEY);
-    createConversation();
-    showToast('All conversations cleared.');
-  }
+  conversations = [];
+  localStorage.removeItem(CONVERSATIONS_KEY);
+  localStorage.removeItem(ACTIVE_CONV_KEY);
+  createConversation();
+  showToast('All conversations cleared.');
 });
 
 // Export conversations
@@ -876,9 +875,13 @@ async function sendMessage(text) {
 
   // Create assistant placeholder row for live streaming
   const { content, row, bodyWrap } = appendMessageElement('assistant', '', {});
+  // Show loading dots while waiting for first token
+  const loadingDots = document.createElement('span');
+  loadingDots.className = 'loading-dots';
+  loadingDots.innerHTML = '<span></span><span></span><span></span>';
+  content.appendChild(loadingDots);
   const cursor = document.createElement('span');
   cursor.className = 'streaming-cursor';
-  content.appendChild(cursor);
   scrollChatToBottom(true);
 
   // Setup AbortController
@@ -953,6 +956,8 @@ async function sendMessage(text) {
           }
           if (parsed.text) {
             accumulatedText += parsed.text;
+            // Remove loading dots on first token
+            if (loadingDots.parentNode) loadingDots.remove();
             content.innerHTML = renderMarkdownContent(accumulatedText);
             content.appendChild(cursor);
             scrollChatToBottom(false);
@@ -968,15 +973,13 @@ async function sendMessage(text) {
 
     // Stream finished successfully
     cursor.remove();
+    if (loadingDots.parentNode) loadingDots.remove();
     content.innerHTML = renderMarkdownContent(accumulatedText);
     enrichMessageElement(content, accumulatedText);
 
     const latency = Date.now() - startTime;
     const tokenEst = Math.round(accumulatedText.length / 4);
     const statsObj = streamStats || { latencyMs: latency, tokenEstimate: tokenEst };
-
-    // Update speed badge in subheader
-    $('#speedValue').textContent = `${latency}ms • ~${Math.round(tokenEst / (latency / 1000) || 1)} t/s`;
 
     // Save assistant message to history
     history.push({
@@ -996,6 +999,7 @@ async function sendMessage(text) {
     playChime('success');
   } catch (err) {
     cursor.remove();
+    if (loadingDots.parentNode) loadingDots.remove();
     if (err.name === 'AbortError') {
       content.innerHTML = renderMarkdownContent(accumulatedText + '\n\n*(Generation stopped by user)*');
       enrichMessageElement(content, accumulatedText);

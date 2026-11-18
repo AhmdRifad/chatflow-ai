@@ -2299,3 +2299,54 @@ kbd {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   CUSTOM ADDITIONS
+   ========================================================================== */
+
+/* Hide speed badge & version badge */
+.speed-badge { display: none !important; }
+.brand-badge  { display: none !important; }
+
+/* Hide new-chat button */
+.new-chat { display: none !important; }
+
+/* Adjust sidebar search top margin when new-chat button is hidden */
+.sidebar-search { margin-top: 0; }
+
+/* --- Blinking green status dot --- */
+@keyframes blink-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+.status-dot {
+  animation: blink-dot 2s ease-in-out infinite;
+}
+.status-badge.warning .status-dot {
+  animation: none;
+}
+
+/* --- Loading dots (typing indicator) --- */
+.loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0;
+}
+.loading-dots span {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  opacity: 0.3;
+  animation: loading-bounce 1.2s ease-in-out infinite;
+}
+.loading-dots span:nth-child(1) { animation-delay: 0s; }
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes loading-bounce {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.85); }
+  40%            { opacity: 1;   transform: scale(1.1);  }
+}

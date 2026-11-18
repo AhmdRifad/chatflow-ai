@@ -7,7 +7,7 @@
  
   
   <title>ChatFlow AI — Intelligent AI Workspace</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
   <link rel="stylesheet" href="/styles.css" />
 
   <!-- Markdown, Sanitizer, Syntax Highlighting & Math CDN libraries -->
@@ -29,11 +29,10 @@
         </button>
         <div class="brand">
           <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h11M4 18h16"/></svg>
+            <img src="/favicon.png" width="16" height="16" alt="ChatFlow logo" style="display:block;" />
           </span>
           <div class="brand-text">
             <span class="brand-name">ChatFlow</span>
-            <span class="brand-badge">PRO v2.0</span>
           </div>
         </div>
       </div>
@@ -57,8 +56,8 @@
         </div>
 
         <!-- Quick Palette Shortcut -->
-        <button class="topbar-btn" id="cmdPaletteBtn" title="Command Palette (Cmd+K / Ctrl+K)">
-          <kbd>⌘K</kbd>
+        <button class="topbar-btn" id="cmdPaletteBtn" title="Command Palette">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
         </button>
 
         <!-- Theme Toggle -->
@@ -116,10 +115,6 @@
           </select>
         </div>
 
-        <div class="speed-badge" id="speedBadge" title="Last Response Speed">
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          <span id="speedValue">Ready</span>
-        </div>
       </div>
     </div>
 
@@ -127,12 +122,6 @@
     <div class="body">
       <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
-        <button class="new-chat" id="newChatBtn" title="Start new conversation (Ctrl+N)">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span>New chat</span>
-          <kbd class="sidebar-kbd">⌘N</kbd>
-        </button>
-
         <!-- Search History -->
         <div class="sidebar-search">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -158,7 +147,7 @@
             </button>
           </div>
           <div class="storage-indicator">
-            <span class="demo-tag">ChatFlow AI v2.0 • Local Storage</span>
+            <span class="demo-tag">ChatFlow AI • Local Storage</span>
           </div>
         </div>
       </aside>
